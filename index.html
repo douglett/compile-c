@@ -45,6 +45,7 @@
 	padding: 5px;
 	margin: 5px;
 	font-size: 12px;
+	/*tab-size: 4;*/
 	/*overflow: hidden;*/
 }
 </style>
@@ -63,6 +64,7 @@ int testy=10;
 int func(int a, int b) {
 	int test2 = 1000 * (4 + 4);
 	test = 11*2;
+	// a * b;
 	return 4;
 }
 int main() {
@@ -71,14 +73,24 @@ int main() {
 }`;
 
 const runshow = (prog) => {
-	document.querySelector('#show-input').innerHTML = prog;
-	Parser.parse(prog);
-	if (Parser.error) return;
-	document.querySelector('#show-ast').innerHTML = Parser.showast();
-	Compiler.compile(Parser.prog);
-	if (Compiler.error) return;
-	document.querySelector('#show-output').innerHTML = Compiler.prog;
-	const res = Compiler.run();
+	let res;
+	const run = () => {
+		// parse
+		document.querySelector('#show-input').innerHTML = prog;
+		Parser.parse(prog);
+		document.querySelector('#show-ast').innerHTML = Parser.showast();
+		if (Parser.error()) 
+			return `Parser: ${Parser.error()}`, false;
+		// compile
+		Compiler.compile(Parser.prog);
+		document.querySelector('#show-output').innerHTML = Compiler.prog;
+		if (Compiler.error())
+			return res = `Compiler: ${Compiler.error()}`, false;
+		// run
+		res = Compiler.run();
+		return true;
+	};
+	run();
 	document.querySelector('#show-result').innerHTML = `> ${res}`;
 };
 

@@ -3,16 +3,20 @@
 const Parser = new function() {
 	const tok = new Tokenizer();
 	let error = '';
+	this.prog = null;
+
 
 	this.parse = (str) => {
+		this.prog = null, error = '';
 		tok.parse(str);
-		if (tok.error) return null;
 		console.log(tok.tokens);
-		
-		parseprog();
+		if (tok.error) 
+			return error = tok.error, false;
+		const ok = parseprog();
 		console.log(this.prog);
+		return ok;
 	};
-
+	this.error = () => error;
 
 	
 	// main parse function
@@ -25,7 +29,7 @@ const Parser = new function() {
 			else break;
 		}
 		if (!error && !accept('EOF'))
-			error = 'prog: expected EOF: '+tok.peek().str();
+			error = `expected end of program (EOF): ${tok.peek().str()}`;
 		if (error) 
 			return console.error(error), false;
 		return true;
@@ -81,7 +85,7 @@ const Parser = new function() {
 		while (t = p_statement())
 			def.lines.push(t);
 		if (accept('operator', '}')) return def;
-		error = 'parse function error: unexpected token: ' + tok.peek().str();
+		error = `unexpected token in function: ${tok.peek().str()}`;
 		return null;
 	};
 	// function definition
