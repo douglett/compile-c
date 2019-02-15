@@ -5,23 +5,47 @@
 </head>
 <body>
 
-<div id="showprog"></div>
-<div id="showout"></div>
-<div id="showast"></div>
+<div class="panel-container">
+	<div class="panel left">
+		<div class="title">Input</div>
+		<div id="show-input"></div>
+	</div>
+	<div class="panel right">
+		<div class="title">Output</div>
+		<div id="show-output"></div>
+		<div id="show-result">$ </div>
+	</div>
+	<div class="panel is-100">
+		<div class="title">AST Tree</div>
+		<div id="show-ast"></div>
+	</div>
+</div>
 
 <style type="text/css">
-#showprog, #showout, #showast {
-	white-space: pre; 
+.panel-container {
+	display: flex;
+	flex-wrap: wrap;
+}
+	.panel {
+		width: 50%;
+	}
+	.panel.is-100 {
+		width: 100%;
+	}
+	.title {
+		display: none;
+		padding: 0 10px;
+	}
+#show-input, #show-output, #show-ast, #show-result {
+	display: block;
+	box-sizing: border-box;
+	white-space: pre;
 	font-family: monospace;
 	border: 1px solid black;
-	box-sizing: border-box;
 	padding: 5px;
-	margin-bottom: 10px;
-}
-#showprog, #showout {
-	display: inline-block;
-	width: 45%;
-	vertical-align: top;
+	margin: 5px;
+	font-size: 12px;
+	/*overflow: hidden;*/
 }
 </style>
 
@@ -36,7 +60,7 @@
 let prog = 
 `int test;
 int testy=10;
-int func() {
+int func(int a, int b) {
 	int test2 = 1000 * (4 + 4);
 	test = 11*2;
 	return 4;
@@ -47,15 +71,15 @@ int main() {
 }`;
 
 const runshow = (prog) => {
-	document.querySelector('#showprog').innerHTML = prog;
+	document.querySelector('#show-input').innerHTML = prog;
 	Parser.parse(prog);
 	if (Parser.error) return;
-	document.querySelector('#showast').innerHTML = Parser.showast();
+	document.querySelector('#show-ast').innerHTML = Parser.showast();
 	Compiler.compile(Parser.prog);
 	if (Compiler.error) return;
-	document.querySelector('#showout').innerHTML = Compiler.prog;
+	document.querySelector('#show-output').innerHTML = Compiler.prog;
 	const res = Compiler.run();
-	document.querySelector('#showout').innerHTML += `\n\n::output:: ${res}`;
+	document.querySelector('#show-result').innerHTML = `> ${res}`;
 };
 
 runshow(prog);

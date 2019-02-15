@@ -86,13 +86,28 @@ const Parser = new function() {
 	};
 	// function definition
 	const p_function_def = () => {
-		let p = tok.pos, t, type, ident;
+		let p = tok.pos, t, type, ident, def, args;
 		type = p_type();
 		ident = p_ident();
-		t = accept('operator', '(') && accept('operator', ')') && accept('operator', '{');
-		if (type && ident && t) 
-			return { type:'function_def', name:ident.token, deftype:type.token };
+		if (type && ident) {
+			def = { type:'function_def', name:ident.token, deftype:type.token };
+			t = accept('operator', '(') ;
+			def.arguments = p_function_args();
+			t = t && accept('operator', ')') && accept('operator', '{');
+			if (type && ident && t) 
+				return def;
+		}
 		return tok.pos = p, null;
+	};
+	// function arguments
+	const p_function_args = () => {
+		let p = tok.pos, args = [], t;
+		while (t = p_declare_spec()) {
+			args.push(t);
+			if (!accept('operator', ',')) break;
+		}
+		return args;
+		// return tok.pos = p, null;
 	};
 	// function call
 	const p_call = () => {
