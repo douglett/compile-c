@@ -20,11 +20,11 @@ const Parse = new function() {
 		const prog = this.prog = { type:'prog', defines: [], functions:[] };
 		let t;
 		while (!error) {
-			if (t = p_def()) prog.defines.push(t);
+			if (t = p_declare_line()) prog.defines.push(t);
 			else if (t = p_function()) prog.functions.push(t);
 			else break;
 		}
-		if (!accept('EOF'))
+		if (!error && !accept('EOF'))
 			error = 'prog: expected EOF: '+tok.peek().str();
 		if (error) 
 			return console.error(error), false;
@@ -48,18 +48,26 @@ const Parse = new function() {
 
 
 
-	// define statement
-	const p_def = () => {
-		let p = tok.pos, type, name, def, val;
+	// declaration
+	const p_declare = () => p_declare_expr();
+	// declaration with equals expression
+	const p_declare_expr = () => {
+		let p, def, ex, t;
+		if (!(def = p_declare_spec())) return null;
+		p = tok.pos;
+		t = accept('operator', '=');
+		ex = p_expr();
+		if (t && ex)
+			return def.val = ex, def;
+		return tok.pos = p, def;  // naked declaration
+	};
+	// declaration specifier (type name)
+	const p_declare_spec = () => {
+		let p = tok.pos, type, name;
 		type = p_type();
 		name = p_ident();
-		if (type && name) {
-			def = { type:'define', name:name.token, deftype:type.token };
-			if (accept('operator', ';'))
-				return def;
-			if (accept('operator', '=') && (val = p_expr()) && accept('operator', ';'))
-				return def.val = val, def;
-		}
+		if (type && name) 
+			return { type:'define', name:name.token, deftype:type.token };
 		return tok.pos = p, null;
 	};
 
@@ -70,13 +78,9 @@ const Parse = new function() {
 		let p = tok.pos, t, def;
 		if (!(def = p_function_def())) return null;
 		def.type = 'function', def.lines = [];
-		while (true) {
-			t = p_def() || p_assign() || p_expr_line() || p_statement();
-			if (t) def.lines.push(t);
-			else break;
-		}
+		while (t = p_statement())
+			def.lines.push(t);
 		if (accept('operator', '}')) return def;
-		// return tok.pos = p, null;
 		error = 'parse function error: unexpected token: ' + tok.peek().str();
 		return null;
 	};
@@ -103,12 +107,14 @@ const Parse = new function() {
 
 
 	// statements
-	// line expression
-	const p_expr_line = () => {
-		let p = tok.pos, e, t;
-		e = p_expr();
+	const p_statement = () => p_declare_line() || p_assign() || p_expr_line() || p_keyword();
+	// definition statement
+	const p_declare_line = () => {
+		let p = tok.pos, def, t;
+		def = p_declare();
 		t = accept('operator', ';');
-		if (e && t) return e;
+		if (def && t)
+			return def;
 		return tok.pos = p, null;
 	};
 	// assignment statement
@@ -122,8 +128,16 @@ const Parse = new function() {
 			return { type:'assign', name:a.token, val:b };
 		return tok.pos = p, null;
 	};
+	// line expression
+	const p_expr_line = () => {
+		let p = tok.pos, e, t;
+		e = p_expr();
+		t = accept('operator', ';');
+		if (e && t) return e;
+		return tok.pos = p, null;
+	};
 	// keyword statement
-	const p_statement = () => {
+	const p_keyword = () => {
 		let p = tok.pos, s, e, t;
 		if (s = accept('word', 'return')) {
 			e = p_expr();
