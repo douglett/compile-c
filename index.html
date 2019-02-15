@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>parse 4</title>
+	<title>compile-c</title>
 </head>
 <body>
 
@@ -29,7 +29,7 @@
 </html>
 
 <script type="text/javascript" src="tokens.js"></script>
-<script type="text/javascript" src="parse.js"></script>
+<script type="text/javascript" src="parser.js"></script>
 <script type="text/javascript" src="compilerjs.js"></script>
 
 <script type="text/javascript">
@@ -45,12 +45,19 @@ int main() {
 	func();
 	return 123;
 }`;
-document.querySelector('#showprog').innerHTML = prog;
-Parse.parse(prog);
-document.querySelector('#showast').innerHTML = Parse.showast();
-Compiler.compile(Parse.prog);
-document.querySelector('#showout').innerHTML = Compiler.prog;
-const res = Compiler.run();
-document.querySelector('#showout').innerHTML += `\n\n::output:: ${res}`;
+
+const runshow = (prog) => {
+	document.querySelector('#showprog').innerHTML = prog;
+	Parser.parse(prog);
+	if (Parser.error) return;
+	document.querySelector('#showast').innerHTML = Parser.showast();
+	Compiler.compile(Parser.prog);
+	if (Compiler.error) return;
+	document.querySelector('#showout').innerHTML = Compiler.prog;
+	const res = Compiler.run();
+	document.querySelector('#showout').innerHTML += `\n\n::output:: ${res}`;
+};
+
+runshow(prog);
 
 </script>

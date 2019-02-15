@@ -1,6 +1,6 @@
 'use strict';
 
-const Parse = new function() {
+const Parser = new function() {
 	const tok = new Tokenizer();
 	let error = '';
 
