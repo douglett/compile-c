@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>parse 4</title>
+</head>
+<body>
+
+<div id="showprog"></div>
+<div id="showout"></div>
+<div id="showast"></div>
+
+<style type="text/css">
+#showprog, #showout, #showast {
+	white-space: pre; 
+	font-family: monospace;
+	border: 1px solid black;
+	box-sizing: border-box;
+	padding: 5px;
+	margin-bottom: 10px;
+}
+#showprog, #showout {
+	display: inline-block;
+	width: 45%;
+	vertical-align: top;
+}
+</style>
+
+</body>
+</html>
+
+<script type="text/javascript" src="tokens.js"></script>
+<script type="text/javascript" src="parse.js"></script>
+<script type="text/javascript" src="compilerjs.js"></script>
+
+<script type="text/javascript">
+let prog = 
+`int test;
+int testy=10;
+int func() {
+	int test2 = 1000 * (4 + 4);
+	test = 11*2;
+	return 4;
+}
+int main() {
+	func();
+	return 123;
+}`;
+document.querySelector('#showprog').innerHTML = prog;
+Parse.parse(prog);
+document.querySelector('#showast').innerHTML = Parse.showast();
+Compiler.compile(Parse.prog);
+document.querySelector('#showout').innerHTML = Compiler.prog;
+const res = Compiler.run();
+document.querySelector('#showout').innerHTML += `\n\n::output:: ${res}`;
+
+</script>
