@@ -64,12 +64,13 @@ int testy=10;
 int func(int a, int b) {
 	int test2 = 1000 * (4 + 4);
 	test = 11*2;
-	// a * b;
+	a * b;
 	return 4;
 }
 int main() {
 	func();
-	return 123;
+	// return 123;
+	return func()*2;
 }`;
 
 const runshow = (prog) => {

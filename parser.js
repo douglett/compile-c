@@ -152,7 +152,8 @@ const Parser = new function() {
 		let p = tok.pos, e, t;
 		e = p_expr();
 		t = accept('operator', ';');
-		if (e && t) return e;
+		if (e && t) 
+			return { type:'expression', val:e };
 		return tok.pos = p, null;
 	};
 	// keyword statement

@@ -53,17 +53,17 @@ const Compiler = new function() {
 
 	
 	const c_expr = (expr) => {
-		if (!expr) ;
-		else if (expr.type === 'number') 
+		if (expr.type === 'number') 
 			return expr.token;
-		// if (expr.type === 'word') 
-		// 	return expr.token;
-		else if (/^[\+\-\*\/]$/.test(expr.type)) 
+		if (expr.type === 'word') 
+			return expr.token; // identifier
+		if (expr.type === 'call')
+			return c_call(expr); // call function
+		if (/^[\+\-\*\/]$/.test(expr.type)) 
 			return `(${c_expr(expr.vala)} ${expr.type} ${c_expr(expr.valb)})`;
 		// error
 		const v = `:${typeof expr.str === 'function' ? expr.str() : expr.type}:`;
-		error = `unknown input: ${v}`;
-		return '???';
+		return error = `unknown input: ${v}`, v;
 	};
 
 	const c_line = (ln) => {
@@ -74,10 +74,8 @@ const Compiler = new function() {
 			return `let ${ln.name} = ${v};`;
 		case 'assign':
 			return `${ln.name} = ${c_expr(ln.val)};`;
-		// case 'val':
-		// 	return `${c_expr(ln.val)};`;
-		case 'call':
-			return `${ln.name}();`;
+		case 'expression':
+			return `${c_expr(ln.val)};`;
 		case 'return':
 			return `return ${c_expr(ln.val)};`;
 		default:
@@ -86,4 +84,10 @@ const Compiler = new function() {
 			return v;
 		}
 	};
+
+	const c_call = (call) => {
+		console.log('args', call.arguments);
+		return `${call.name}()`;
+	};
+
 };
