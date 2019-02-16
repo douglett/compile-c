@@ -12,10 +12,16 @@ const Compiler = new function() {
 
 
 	this.run = () => {
-		const fn = Function(this.prog);
-		const res = fn();
-		console.log(`prog ran. output: ${res}`);
-		return res;
+		try {
+			const fn = Function(this.prog);
+			const res = fn();
+			console.log(`prog ran. output: ${res}`);
+			return res;
+		} catch (e) {
+			console.error(e);
+			return e.message;
+			// return`${e.lineNumber}: ${e.message}`;
+		}
 	};
 	this.crun = (prog) => {
 		compile(prog);
