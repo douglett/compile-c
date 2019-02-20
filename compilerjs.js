@@ -7,6 +7,8 @@ const Compiler = new function() {
 		'return main();'
 	];
 	const out = [];
+	let ast = {};
+	let defines = [];
 	let error = '';
 	this.prog = '';
 
@@ -31,13 +33,15 @@ const Compiler = new function() {
 	
 
 	this.compile = (prog) => {
-		out.splice(0), error = '';
+		out.splice(0), error = '', ast = prog, defines = [];
 		// defines
 		prog.defines.forEach(d => out.push(c_line(d)));
+		const defstart = defines.length;
 		// functions
 		prog.functions.some(fn => {
-			const args = fn.arguments.map(a => a.name).join(', ');
-			out.push(`const ${fn.name} = (${args}) => {`);
+			const args = fn.arguments.map(a => a.name);
+			out.push(`const ${fn.name} = (${args.join(', ')}) => {`);
+			defines = defines.slice(0, defstart).concat(args); // make new defines list
 			// function lines
 			fn.lines.some(l => ( out.push('\t' + c_line(l)), error ));
 			if (error) return true;
@@ -61,8 +65,11 @@ const Compiler = new function() {
 	const c_expr = (expr) => {
 		if (expr.type === 'number') 
 			return expr.token;
-		if (expr.type === 'word') 
+		if (expr.type === 'word') {
+			if (defines.indexOf(expr.token) === -1)
+				return error = `undefined: ${expr.token}`, `:${error}:`; // check if defined
 			return expr.token; // identifier
+		}
 		if (expr.type === 'call')
 			return c_call(expr); // call function
 		if (/^[\+\-\*\/]$/.test(expr.type)) 
@@ -76,6 +83,7 @@ const Compiler = new function() {
 		let v;
 		switch (ln.type) {
 		case 'define':
+			defines.push(ln.name);
 			v = ln.val ? c_expr(ln.val) : 0;
 			return `let ${ln.name} = ${v};`;
 		case 'assign':
@@ -92,8 +100,18 @@ const Compiler = new function() {
 	};
 
 	const c_call = (call) => {
-		console.log('args', call.arguments);
-		return `${call.name}()`;
+		// check arguments count
+		const fndef = ast.functions.find(fn => fn.name === call.name);
+		if (!fndef) 
+			return error = `unknown function: ${call.name}`, `:${error}:`;
+		if (fndef.arguments.length < call.arguments.length)
+			return error = `too many arguments: expected ${fndef.arguments.length}`, `:${error}:`;
+		// calculate args
+		const args = call.arguments.map(a => c_expr(a));
+		// fill missing args with zero
+		while (args.length < fndef.arguments.length)
+			args.push('0');
+		return `${call.name}(${args.join(', ')})`;
 	};
 
 };

@@ -86,7 +86,8 @@ const Parser = new function() {
 			def.lines.push(t);
 		if (accept('operator', '}')) return def;
 		error = `unexpected token in function: ${tok.peek().str()}`;
-		return null;
+		// return null;
+		return def;
 	};
 	// function definition
 	const p_function_def = () => {
@@ -115,12 +116,26 @@ const Parser = new function() {
 	};
 	// function call
 	const p_call = () => {
-		let p = tok.pos, t, i;
-		i = p_ident();
-		t = accept('operator', '(') && accept('operator', ')');
-		if (i && t)
-			return { type:'call', name:i.token };
+		let p = tok.pos, t, id, def;
+		id = p_ident();
+		t = accept('operator', '(');
+		if (id && t) {
+			def = { type:'call', name:id.token };
+			def.arguments = p_call_args();
+			t = t && accept('operator', ')');
+			if (id && t)
+				return def;
+		}
 		return tok.pos = p, null;
+	};
+	// function call args
+	const p_call_args = () => {
+		let args = [], t;
+		while (t = p_expr()) {
+			args.push(t);
+			if (!accept('operator', ',')) break;
+		}
+		return args;
 	};
 
 

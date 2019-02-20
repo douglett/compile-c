@@ -62,14 +62,14 @@ let prog =
 `int test;
 int testy=10;
 int func(int a, int b) {
-	int test2 = 1000 * (4 + 4);
+	int testy = 1000 * (4 + 4);
 	test = 11*2;
-	a * b;
-	return 4;
+	return a * b;
+	// return 4;
 }
 int main() {
-	func();
-	return 120 + func()*2;
+	func(1, 2+1*3);
+	return 120 + func(2, 2)*2;
 }`;
 
 const runshow = (prog) => {
