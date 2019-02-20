@@ -100,18 +100,27 @@ const Compiler = new function() {
 	};
 
 	const c_call = (call) => {
+		// get function
+		const fndef = getfunc(call.name);
 		// check arguments count
-		const fndef = ast.functions.find(fn => fn.name === call.name);
-		if (!fndef) 
-			return error = `unknown function: ${call.name}`, `:${error}:`;
 		if (fndef.arguments.length < call.arguments.length)
 			return error = `too many arguments: expected ${fndef.arguments.length}`, `:${error}:`;
 		// calculate args
 		const args = call.arguments.map(a => c_expr(a));
-		// fill missing args with zero
 		while (args.length < fndef.arguments.length)
 			args.push('0');
 		return `${call.name}(${args.join(', ')})`;
+	};
+
+	const getfunc = (name) => {
+		// special functions
+		if (name === 'puti')
+			return { name:'puti', type:'int', arguments:['i'] };
+		// user defined functions
+		const fndef = ast.functions.find(fn => fn.name === name);
+		if (!fndef) 
+			return error = `unknown function: ${name}`, `:${error}:`;
+		return fndef;
 	};
 
 };
