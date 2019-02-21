@@ -7,10 +7,12 @@ const Compiler = new function() {
 		'return main();'
 	];
 	const out = [];
-	let ast = {};
-	let defines = [];
 	let error = '';
 	this.prog = '';
+	// define checking
+	const CHECK_DEF = true;
+	let ast = {};
+	let defines = [];
 
 
 	this.run = () => {
@@ -41,7 +43,7 @@ const Compiler = new function() {
 		prog.functions.some(fn => {
 			const args = fn.arguments.map(a => a.name);
 			out.push(`const ${fn.name} = (${args.join(', ')}) => {`);
-			defines = defines.slice(0, defstart).concat(args); // make new defines list
+			defines = defines.slice(0, defstart).concat(args); // update defines list with function arguments
 			// function lines
 			fn.lines.some(l => ( out.push('\t' + c_line(l)), error ));
 			if (error) return true;
@@ -66,7 +68,7 @@ const Compiler = new function() {
 		if (expr.type === 'number') 
 			return expr.token;
 		if (expr.type === 'word') {
-			if (defines.indexOf(expr.token) === -1)
+			if (CHECK_DEF && defines.indexOf(expr.token) === -1)
 				return error = `undefined: ${expr.token}`, `:${error}:`; // check if defined
 			return expr.token; // identifier
 		}
@@ -100,19 +102,20 @@ const Compiler = new function() {
 	};
 
 	const c_call = (call) => {
+		if (!CHECK_DEF) {
+			const args = call.arguments.map(a => c_expr(a)).join(', ');
+			return `${call.name}(${args})`;
+		}
 		// get function
-		const fndef = getfunc(call.name);
-		// check arguments count
-		if (fndef.arguments.length < call.arguments.length)
-			return error = `too many arguments: expected ${fndef.arguments.length}`, `:${error}:`;
-		// calculate args
 		const args = call.arguments.map(a => c_expr(a));
-		while (args.length < fndef.arguments.length)
-			args.push('0');
+		const fndef = getfunc(call.name, args.length);
+		if (error) return fndef;
+		// calculate args
+		while (args.length < fndef.arguments.length) args.push('0'); // fill missing args
 		return `${call.name}(${args.join(', ')})`;
 	};
 
-	const getfunc = (name) => {
+	const getfunc = (name, arglen) => {
 		// special functions
 		if (name === 'puti')
 			return { name:'puti', type:'int', arguments:['i'] };
@@ -120,6 +123,9 @@ const Compiler = new function() {
 		const fndef = ast.functions.find(fn => fn.name === name);
 		if (!fndef) 
 			return error = `unknown function: ${name}`, `:${error}:`;
+		// check arguments count
+		if (fndef.arguments.length < arglen)
+			return error = `too many arguments: expected ${fndef.arguments.length}`, `:${error}:`;
 		return fndef;
 	};
 
