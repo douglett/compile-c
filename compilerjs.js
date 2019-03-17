@@ -7,6 +7,7 @@ const Compiler = new function() {
 		'return main();'
 	];
 	const out = [];
+	let outtab = 0;
 	let error = '';
 	this.prog = '';
 	// define checking
@@ -35,22 +36,24 @@ const Compiler = new function() {
 	
 
 	this.compile = (prog) => {
-		out.splice(0), error = '', ast = prog, defines = [];
+		out.splice(0), outtab = 0, error = '', ast = prog, defines = [];
 		// defines
-		prog.defines.forEach(d => out.push(c_line(d)));
+		prog.defines.some(d => ( ci_line(d), error ));
 		const defstart = defines.length;
 		// functions
 		prog.functions.some(fn => {
 			const args = fn.arguments.map(a => a.name);
-			out.push(`const ${fn.name} = (${args.join(', ')}) => {`);
+			outp(`const ${fn.name} = (${args.join(', ')}) => {`);
+			outi();
 			defines = defines.slice(0, defstart).concat(args); // update defines list with function arguments
 			// function lines
-			fn.lines.some(l => ( out.push('\t' + c_line(l)), error ));
+			fn.lines.some(l => ( ci_line(l), error ));
 			if (error) return true;
 			// end function
 			if (!/^\s*return/.test(out[out.length-1]))
-				out.push(`\treturn 0;`);
-			out.push(`};`);
+				outp(`return 0;`);
+			outj();
+			outp(`};`);
 		});
 		// output
 		console.log(out);
@@ -63,6 +66,11 @@ const Compiler = new function() {
 		return true;
 	};
 
+
+	const outp = (line) => out.push(`${'\t'.repeat(outtab)}${line}`);
+	const outi = () => outtab++;
+	const outj = () => outtab = Math.max(outtab-1, 0);
+
 	
 	const c_expr = (expr) => {
 		if (expr.type === 'number') 
@@ -74,11 +82,29 @@ const Compiler = new function() {
 		}
 		if (expr.type === 'call')
 			return c_call(expr); // call function
-		if (/^[\+\-\*\/]$/.test(expr.type)) 
+		if (/^(\+|\-|\*|\/|==|<|<=|>|>=)$/.test(expr.type)) 
 			return `(${c_expr(expr.vala)} ${expr.type} ${c_expr(expr.valb)})`;
 		// error
 		const v = `:${typeof expr.str === 'function' ? expr.str() : expr.type}:`;
 		return error = `unknown input: ${v}`, v;
+	};
+
+	const ci_line = (ln) => {
+		let v;
+		// multi-line
+		switch (ln.type) {
+		case 'if':
+		case 'while':
+			v = c_expr(ln.val);
+			if (!v || error) return
+			outp(`${ln.type} (${v}) {`), outi();
+			ln.lines.some(l => ( ci_line(l), error ));
+			outj(), outp(`}`);
+			return;
+		}
+		// single line
+		if (v = c_line(ln))
+			return outp(v);
 	};
 
 	const c_line = (ln) => {

@@ -82,10 +82,11 @@ const Parser = new function() {
 		let p = tok.pos, t, def;
 		if (!(def = p_function_def())) return null;
 		def.type = 'function', def.lines = [];
-		while (t = p_statement())
+		while ((t = p_statement()) && !error)
 			def.lines.push(t);
 		if (accept('operator', '}')) return def;
-		error = `unexpected token in function: ${tok.peek().str()}`;
+		if (!error)
+			error = `unexpected token in function: ${tok.peek().str()}`;
 		// return null;
 		return def;
 	};
@@ -173,20 +174,73 @@ const Parser = new function() {
 	};
 	// keyword statement
 	const p_keyword = () => {
-		let p = tok.pos, s, e, t;
+		let p = tok.pos, s, e, t, def;
+		// return statement
 		if (s = accept('word', 'return')) {
 			e = p_expr();
 			t = accept('operator', ';');
 			if (s && e && t)
 				return { type:'return', val:e };
 		}
-		return tok.pos = p, null;
+		// if statement
+		else if (s = accept('word', 'if')) {
+			t = accept('operator', '(');
+			e = p_expr();
+			t = t && accept('operator', ')');
+			if (s && t && e) 
+				if (def = p_block())
+					return def.type = 'if', def.val = e, def;
+		}
+		// while statement
+		else if (s = accept('word', 'while')) {
+			t = accept('operator', '(');
+			e = p_expr();
+			t = t && accept('operator', ')');
+			if (s && t && e) 
+				if (def = p_block())
+					return def.type = 'while', def.val = e, def;
+		}
+		// unknown
+		else
+			return tok.pos = p, null;
+		// found, but error
+		tok.pos = p;
+		if (!error) error = `error in keyword statement: ${tok.peek().str()}`;
+		return null;
+	};
+	// block of statements
+	const p_block = () => {
+		let p = tok.pos, t, a;
+		let def = { type:'block', lines:[] };
+		t = accept('operator', '{');
+		if (!t && !error)
+			error = `expected open braces in block: ${tok.peek().str()}`;
+		while ((a = p_statement()) && !error)
+			def.lines.push(a);
+		t = t && accept('operator', '}');
+		if (!t && !error)
+			error = `expected close braces in block: ${tok.peek().str()}`;
+		return def;
 	};
 
 
 
 	// expressions
-	const p_expr = () => p_expr_add();
+	const p_expr = () => p_expr_equal();
+	// equality expressions
+	const p_expr_equal = () => {
+		let p = tok.pos, o, q, a, b, c;
+		a = p_expr_add();
+		q = accept('operator', '=') || accept('operator', '<') || accept('operator', '>');
+		if (a && !q) return a;
+		o = accept('operator', '=');
+		b = p_expr_add();
+		c = (q ? q.token : '') + ( o ? o.token : '');
+		if (a && b && c)
+			if (/^(==|<|<=|>|>=)$/.test(c))
+				return { type:c, vala:a, valb:b };
+		return tok.pos = p, null;
+	};
 	// additive expressions
 	const p_expr_add = () => {
 		let p = tok.pos, o, a, b;
