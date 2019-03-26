@@ -9,11 +9,11 @@ const Parser = new function() {
 	this.parse = (str) => {
 		this.prog = null, error = '';
 		tok.parse(str);
-		console.log(tok.tokens);
+		// console.log(tok.tokens);
 		if (tok.error) 
 			return error = tok.error, false;
 		const ok = parseprog();
-		console.log(this.prog);
+		// console.log(this.prog);
 		return ok;
 	};
 	this.error = () => error;
@@ -30,9 +30,98 @@ const Parser = new function() {
 		}
 		if (!error && !accept('EOF'))
 			error = `expected end of program (EOF): ${tok.peek().str()}`;
+		precompile(this.prog);
 		if (error) 
 			return console.error(error), false;
 		return true;
+	};
+
+
+
+	// precompile - do basic sanity checker, so we don't have to do it in the compiler
+	const precompile = () => {
+		const def = [];
+		let fndef = [];
+		let context = 'global';
+		// 
+		const exists     = (name) => !!def.find(d => d.name === name);
+		const exists_ctx = (name) => !!def.find(d => d.name === name && d.ctx === context);
+		//
+		const check = (ast) => {
+			let pos = def.length;
+			let fn;
+			switch (ast.type) {
+				// main program
+				case 'prog':
+					def.splice(0);
+					context = 'global';
+					// global defines
+					ast.defines.some(t => check(t), error);
+					if (error) break;
+					// check function contents
+					context = 'local';
+					fndef = ast.functions;
+					ast.functions.some(t => check(t), error);
+					break;
+				// check defines
+				case 'define':
+					if (exists_ctx(ast.name)) 
+						return error = `variable already defined: ${ast.name}`, 1;
+					def.push({ name: ast.name, ctx: context });
+					if (ast.val) check(ast.val);
+					break;
+				// check functions
+				case 'function':
+					ast.arguments.some(t => check(t), error);
+					ast.lines.some(t => check(t), error);
+					def.splice(0, pos);
+					break;
+				// various functionality
+				case 'assign':
+					if (!exists(ast.name))
+						return error = `missing variable in assignment: ${ast.name}`, 1;
+					check(ast.val);
+					break;
+				case 'word': // identifier in expression
+					if (!exists(ast.token))
+						return error = `missing variable in expression: ${ast.token}`, 1;
+					break;
+				case 'call':
+					// check function definitions
+					// console.log('call', ast, fndef);
+					if (ast.name === 'puti')
+						return console.warn('TODO: puti checking'), 0;
+					if (!(fn = fndef.find(f => f.name === ast.name)))
+						return error = `call to undefined function: ${ast.name}`, 1;
+					if (ast.arguments.length !== fn.arguments.length)
+						return error = `wrong number of arguments to function: ${ast.name}`, 1;
+					break;
+				case '*':
+				case '+':
+				case '==':
+				case '>':
+					check(ast.vala);
+					check(ast.valb);
+					break;
+				case 'if':
+				case 'while':
+					check(ast.val);
+					break;
+				case 'expression':
+				case 'return':
+					if (ast.val) check(ast.val);
+					break;
+				// OK - skip these
+				case 'number':
+					break;
+				// unknown - error
+				default:
+					// console.log('sanity', ast.type);
+					return error = `precompile: unknown input: ${ast.type}`, 1;
+			}
+		};
+		// do check
+		return check(this.prog);
 	};
 
 

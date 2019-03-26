@@ -1,6 +1,7 @@
 const Compiler = new function() {
 	const outhead = [
-		'"use strict"',
+		'//# sourceURL=output.js',
+		'"use strict";',
 		'const puti = (i) => console.log(i);'
 	];
 	const outtail = [
