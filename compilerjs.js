@@ -1,6 +1,6 @@
 const Compiler = new function() {
 	const outhead = [
-		'//# sourceURL=output.js',
+		// '//# sourceURL=output.js',
 		'"use strict";',
 		'const puti = (i) => console.log(i);'
 	];
@@ -38,24 +38,34 @@ const Compiler = new function() {
 
 	this.compile = (prog) => {
 		out.splice(0), outtab = 0, error = '', ast = prog, defines = [];
-		// defines
-		prog.defines.some(d => ( ci_line(d), error ));
-		const defstart = defines.length;
-		// functions
-		prog.functions.some(fn => {
-			const args = fn.arguments.map(a => a.name);
-			outp(`const ${fn.name} = (${args.join(', ')}) => {`);
-			outi();
-			defines = defines.slice(0, defstart).concat(args); // update defines list with function arguments
-			// function lines
-			fn.lines.some(l => ( ci_line(l), error ));
-			if (error) return true;
-			// end function
-			if (!/^\s*return/.test(out[out.length-1]))
-				outp(`return 0;`);
-			outj();
-			outp(`};`);
+		prog.some(ln => {
+			if      (!Array.isArray(ln)) ;
+			else if (ln[0] === 'define') return ci_line(ln), error;
+			else if (ln[0] === 'defun' ) return ci_func(ln), error;
+			return error = `Compiler: expected define or defun`;
 		});
+
+
+		// // defines
+		// prog.defines.some(d => ( ci_line(d), error ));
+		// const defstart = defines.length;
+		// // functions
+		// prog.functions.some(fn => {
+		// 	const args = fn.arguments.map(a => a.name);
+		// 	outp(`const ${fn.name} = (${args.join(', ')}) => {`);
+		// 	outi();
+		// 	defines = defines.slice(0, defstart).concat(args); // update defines list with function arguments
+		// 	// function lines
+		// 	fn.lines.some(l => ( ci_line(l), error ));
+		// 	if (error) return true;
+		// 	// end function
+		// 	if (!/^\s*return/.test(out[out.length-1]))
+		// 		outp(`return 0;`);
+		// 	outj();
+		// 	outp(`};`);
+		// });
+
+
 		// output
 		console.log(out);
 		// error
@@ -68,78 +78,142 @@ const Compiler = new function() {
 	};
 
 
+	// output helpers
 	const outp = (line) => out.push(`${'\t'.repeat(outtab)}${line}`);
 	const outi = () => outtab++;
 	const outj = () => outtab = Math.max(outtab-1, 0);
 
 	
 	const c_expr = (expr) => {
-		if (expr.type === 'number') 
-			return expr.token;
-		if (expr.type === 'word') {
-			if (CHECK_DEF && defines.indexOf(expr.token) === -1)
-				return error = `undefined: ${expr.token}`, `:${error}:`; // check if defined
-			return expr.token; // identifier
+		console.log('expr', expr);
+		if (typeof expr === 'string') {
+			if (/^[0-9]+$/.test(expr)) 
+				return expr; // number
+			if (/^\$[A-Za-z]$/.test(expr)) 
+				return expr; // identifier
 		}
-		if (expr.type === 'call')
-			return c_call(expr); // call function
-		if (/^(\+|\-|\*|\/|==|<|<=|>|>=)$/.test(expr.type)) 
-			return `(${c_expr(expr.vala)} ${expr.type} ${c_expr(expr.valb)})`;
+		else if (Array.isArray(expr)) {
+			if (expr[0] === 'call')
+				return c_call(expr); // call function
+			if (/^(\+|\-|\*|\/|==|<|<=|>|>=)$/.test(expr[0]))
+				return `(${c_expr(expr[1])} ${expr[0]} ${c_expr(expr[2])})`; // expression
+		}
+
+
+		// if (expr.type === 'number') 
+		// 	return expr.token;
+		// if (expr.type === 'word') {
+		// 	if (CHECK_DEF && defines.indexOf(expr.token) === -1)
+		// 		return error = `undefined: ${expr.token}`, `:${error}:`; // check if defined
+		// 	return expr.token; // identifier
+		// }
+		// if (expr.type === 'call')
+		// 	return c_call(expr); // call function
+		// if (/^(\+|\-|\*|\/|==|<|<=|>|>=)$/.test(expr.type)) 
+		// 	return `(${c_expr(expr.vala)} ${expr.type} ${c_expr(expr.valb)})`;
+
 		// error
-		const v = `:${typeof expr.str === 'function' ? expr.str() : expr.type}:`;
-		return error = `unknown input: ${v}`, v;
+		// const v = `:${typeof expr.str === 'function' ? expr.str() : expr.type}:`;
+		// return error = `unknown input: ${v}`, v;
+		return  error = `unknown input: ${expr}`;
 	};
 
 	const ci_line = (ln) => {
 		let v;
-		// multi-line
-		switch (ln.type) {
+		switch (ln[0]) {
+		case 'define':
+			defines.push(ln[1]);
+			v = ln[2] ? c_expr(ln[2]) : 0;
+			return outp(`let ${ln[1]} = ${v};`);
+		case 'set':
+			return outp(`${ln[1]} = ${c_expr(ln[2])};`);
+		case 'call':
+			return outp(c_call(ln));
+		case 'return':
+			return outp(`return ${c_expr(ln[1])};`);
 		case 'if':
 		case 'while':
-			v = c_expr(ln.val);
+			v = c_expr(ln[1]);
 			if (!v || error) return
-			outp(`${ln.type} (${v}) {`), outi();
-			ln.lines.some(l => ( ci_line(l), error ));
-			outj(), outp(`}`);
-			return;
+			outp(`${ln[0]} (${v}) {`), outi();
+			ln[2].some(l => ( ci_line(l), error ));
+			return outj(), outp(`}`);
+		default:
+			// v = `:${typeof ln.str === 'function' ? ln.str() : ln.type}:`;
+			error = `unknown input: ${ln[0]}`;
 		}
-		// single line
-		if (v = c_line(ln))
-			return outp(v);
 	};
 
-	const c_line = (ln) => {
-		let v;
-		switch (ln.type) {
-		case 'define':
-			defines.push(ln.name);
-			v = ln.val ? c_expr(ln.val) : 0;
-			return `let ${ln.name} = ${v};`;
-		case 'assign':
-			return `${ln.name} = ${c_expr(ln.val)};`;
-		case 'expression':
-			return `${c_expr(ln.val)};`;
-		case 'return':
-			return `return ${c_expr(ln.val)};`;
-		default:
-			v = `:${typeof ln.str === 'function' ? ln.str() : ln.type}:`;
-			error = `unknown input: ${v}`;
-			return v;
-		}
+	const ci_func = (ln) => {
+		const name = ln[1].substr(1);
+		const args = ln[2];
+		outp(`const ${name} = (${args.join(', ')}) => {`);
+		outi();
+			// function lines
+			ln[3].some(l => ( ci_line(l), error ));
+			if (error) return true;
+			// end function
+			if (!/^\s*return/.test(out[out.length-1]))
+				outp(`return 0;`);
+		outj();
+		outp(`}`);
 	};
+
+	// const ci_line = (ln) => {
+	// 	let v;
+	// 	// multi-line
+	// 	switch (ln.type) {
+	// 	case 'if':
+	// 	case 'while':
+	// 		v = c_expr(ln.val);
+	// 		if (!v || error) return
+	// 		outp(`${ln.type} (${v}) {`), outi();
+	// 		ln.lines.some(l => ( ci_line(l), error ));
+	// 		outj(), outp(`}`);
+	// 		return;
+	// 	}
+	// 	// single line
+	// 	if (v = c_line(ln))
+	// 		return outp(v);
+	// };
+
+	// const c_line = (ln) => {
+	// 	let v;
+	// 	switch (ln.type) {
+	// 	case 'define':
+	// 		defines.push(ln.name);
+	// 		v = ln.val ? c_expr(ln.val) : 0;
+	// 		return `let ${ln.name} = ${v};`;
+	// 	case 'assign':
+	// 		return `${ln.name} = ${c_expr(ln.val)};`;
+	// 	case 'expression':
+	// 		return `${c_expr(ln.val)};`;
+	// 	case 'return':
+	// 		return `return ${c_expr(ln.val)};`;
+	// 	default:
+	// 		v = `:${typeof ln.str === 'function' ? ln.str() : ln.type}:`;
+	// 		error = `unknown input: ${v}`;
+	// 		return v;
+	// 	}
+	// };
 
 	const c_call = (call) => {
-		if (!CHECK_DEF) {
-			const args = call.arguments.map(a => c_expr(a)).join(', ');
-			return `${call.name}(${args})`;
-		}
-		// get function
-		const args = call.arguments.map(a => c_expr(a));
-		const fndef = getfunc(call.name, args.length);
-		if (error) return fndef;
-		// calculate args
-		while (args.length < fndef.arguments.length) args.push('0'); // fill missing args
-		return `${call.name}(${args.join(', ')})`;
+		const name = call[1].substr(1);
+		const args = call[2].map(a => c_expr(a));
+		return `${name}(${args.join(', ')})`;
+		
+
+		// if (!CHECK_DEF) {
+		// 	const args = call.arguments.map(a => c_expr(a)).join(', ');
+		// 	return `${call.name}(${args})`;
+		// }
+		// // get function
+		// const args = call.arguments.map(a => c_expr(a));
+		// const fndef = getfunc(call.name, args.length);
+		// if (error) return fndef;
+		// // calculate args
+		// while (args.length < fndef.arguments.length) args.push('0'); // fill missing args
+		// return `${call.name}(${args.join(', ')})`;
 	};
 
 	const getfunc = (name, arglen) => {

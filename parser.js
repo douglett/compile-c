@@ -41,6 +41,7 @@ const Parser = new function() {
 
 	// helpers
 	const accept = (type, value) => {
+		while (tok.peek().type === 'debug-sym') tok.get(); // ignore debug symbols if present
 		if (tok.peek().type === type) {
 			if (!value) return tok.get();
 			if (typeof value === 'string' && tok.peek().token === value) return tok.get();
@@ -73,7 +74,7 @@ const Parser = new function() {
 		type = p_type();
 		name = p_ident();
 		if (type && name) {
-			return [ 'define', `$${name.token}` ];
+			return [ `$${name.token}` ];
 		}
 		return tok.pos = p, null;
 	};
@@ -98,7 +99,7 @@ const Parser = new function() {
 		type = p_type();
 		ident = p_ident();
 		if (type && ident) {
-			def = [ 'defun', `$${ident.token}` ]
+			def = [ 'defun', `@${ident.token}` ]
 			t = accept('operator', '(') ;
 			def.push( p_function_args() );
 			t = t && accept('operator', ')') && accept('operator', '{');
@@ -149,7 +150,7 @@ const Parser = new function() {
 		def = p_declare();
 		t = accept('operator', ';');
 		if (def && t)
-			return def;
+			return def.unshift('define'), def;
 		return tok.pos = p, null;
 	};
 	// assignment statement
