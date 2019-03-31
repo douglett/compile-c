@@ -45,7 +45,7 @@
 	padding: 5px;
 	margin: 5px;
 	font-size: 12px;
-	/*tab-size: 4;*/
+	tab-size: 3;
 	/*overflow: hidden;*/
 }
 </style>
@@ -86,7 +86,7 @@ const runshow = (prog) => {
 		// parse
 		document.querySelector('#show-input').innerHTML = prog;
 		Parser.parse(prog);
-		document.querySelector('#show-ast').innerHTML = Parser.showast();
+		document.querySelector('#show-ast').innerHTML = Parser.showlist();
 		if (Parser.error()) 
 			return `Parser: ${Parser.error()}`, false;
 		// compile
@@ -95,6 +95,7 @@ const runshow = (prog) => {
 		if (Compiler.error())
 			return res = `Compiler: ${Compiler.error()}`, false;
 		// run
+		// return
 		res = Compiler.run();
 		return true;
 	};

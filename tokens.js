@@ -28,6 +28,9 @@ class Tokenizer {
 		this.tokens = [];
 		const lines = str.split('\n');
 		lines.forEach((line, lno) => {
+			// add line text as debug symbol?
+			// this.tokens.push( new Token(line, 'debug-sym', lno, 0) );
+			// parse each token in line
 			let pos = 0;
 			while (pos < line.length) {
 				if (this.error) return; // stop on error
