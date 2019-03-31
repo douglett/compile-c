@@ -28,8 +28,6 @@ const Parser = new function() {
 			else if (t = p_function()) prog.push(t);
 			else break;
 		}
-		console.log('prog:', prog);
-
 		if (!error && !accept('EOF'))
 			error = `expected end of program (EOF): ${tok.peek().str()}`;
 		if (error) 
