@@ -21,12 +21,11 @@ const Parser = new function() {
 	
 	// main parse function
 	const parseprog = () => {
-		// const prog = this.prog = { type:'prog', defines: [], functions:[] };
 		const prog = this.prog = [];
 		let t;
 		while (!error) {
-			if      (t = p_declare_line()) prog.push(t); // prog.defines.push(t);
-			else if (t = p_function()) prog.push(t); // prog.functions.push(t);
+			if      (t = p_declare_line()) prog.push(t);
+			else if (t = p_function()) prog.push(t);
 			else break;
 		}
 		console.log('prog:', prog);
@@ -65,7 +64,6 @@ const Parser = new function() {
 		t = accept('operator', '=');
 		ex = p_expr();
 		if (t && ex)
-			// return def.val = ex, def;
 			return def.push(ex), def;
 		return tok.pos = p, def;  // naked declaration
 	};
@@ -75,7 +73,6 @@ const Parser = new function() {
 		type = p_type();
 		name = p_ident();
 		if (type && name) {
-			// return { type:'define', name:name.token, deftype:type.token };
 			return [ 'define', `$${name.token}` ];
 		}
 		return tok.pos = p, null;
@@ -87,12 +84,10 @@ const Parser = new function() {
 	const p_function = () => {
 		let p = tok.pos, t, def, lines = [];
 		if (!(def = p_function_def())) return null;
-		// def.type = 'function', def.lines = [];
-		def.push(lines);
 		while ((t = p_statement()) && !error)
-			// def.lines.push(t);
 			lines.push(t);
-		if (accept('operator', '}')) return def;
+		if (accept('operator', '}')) 
+			return def.push(lines), def;
 		if (!error)
 			error = `unexpected token in function: ${tok.peek().str()}`;
 		return def;
@@ -103,11 +98,9 @@ const Parser = new function() {
 		type = p_type();
 		ident = p_ident();
 		if (type && ident) {
-			// def = { type:'function_def', name:ident.token, deftype:type.token };
 			def = [ 'defun', `$${ident.token}` ]
 			t = accept('operator', '(') ;
-			// def.arguments = p_function_args();
-			def.push(p_function_args());
+			def.push( p_function_args() );
 			t = t && accept('operator', ')') && accept('operator', '{');
 			if (type && ident && t) 
 				return def;
@@ -122,20 +115,16 @@ const Parser = new function() {
 			if (!accept('operator', ',')) break;
 		}
 		return args;
-		// return tok.pos = p, null;
 	};
 	// function call
 	const p_call = () => {
-		let p = tok.pos, t, id, args /*, def*/;
+		let p = tok.pos, t, id, args;
 		id = p_ident();
 		t = accept('operator', '(');
 		if (id && t) {
-			// def = { type:'call', name:id.token };
-			// def.arguments = p_call_args();
 			args = p_call_args();
 			t = t && accept('operator', ')');
 			if (id && t)
-				// return def;
 				return [ 'call', `@${id.token}`, args ];
 		}
 		return tok.pos = p, null;
@@ -171,7 +160,6 @@ const Parser = new function() {
 		b = p_expr();
 		t = t && accept('operator', ';');
 		if (a && t && b)
-			// return { type:'assign', name:a.token, val:b };
 			return [ 'set', `$${a.token}`, b ];
 		return tok.pos = p, null;
 	};
@@ -181,7 +169,6 @@ const Parser = new function() {
 		e = p_expr();
 		t = accept('operator', ';');
 		if (e && t) 
-			// return { type:'expression', val:e };
 			return e;
 		return tok.pos = p, null;
 	};
@@ -193,7 +180,6 @@ const Parser = new function() {
 			e = p_expr();
 			t = accept('operator', ';');
 			if (s && e && t)
-				// return { type:'return', val:e };
 				return [ 'return', e ];
 		}
 		// if statement
@@ -203,7 +189,6 @@ const Parser = new function() {
 			t = t && accept('operator', ')');
 			if (s && t && e) 
 				if (def = p_block())
-					// return def.type = 'if', def.val = e, def;
 					return [ 'if', e, def ];
 		}
 		// while statement
@@ -213,7 +198,6 @@ const Parser = new function() {
 			t = t && accept('operator', ')');
 			if (s && t && e) 
 				if (def = p_block())
-					// return def.type = 'while', def.val = e, def;
 					return [ 'while', e, def ];
 		}
 		// unknown
@@ -226,14 +210,11 @@ const Parser = new function() {
 	};
 	// block of statements
 	const p_block = () => {
-		let p = tok.pos, t, a;
-		// let def = { type:'block', lines:[] };
-		let def = [];
+		let p = tok.pos, def = [], t, a;
 		t = accept('operator', '{');
 		if (!t && !error)
 			error = `expected open braces in block: ${tok.peek().str()}`;
 		while ((a = p_statement()) && !error)
-			// def.lines.push(a);
 			def.push(a);
 		t = t && accept('operator', '}');
 		if (!t && !error)
@@ -256,7 +237,6 @@ const Parser = new function() {
 		c = (q ? q.token : '') + ( o ? o.token : '');
 		if (a && b && c)
 			if (/^(==|<|<=|>|>=)$/.test(c))
-				// return { type:c, vala:a, valb:b };
 				return [ c, a, b ];
 		return tok.pos = p, null;
 	};
@@ -268,7 +248,6 @@ const Parser = new function() {
 		if (a && !o) return a;
 		b = p_expr_mul();
 		if (a && o && b)
-			// return { type:o.token, vala:a, valb:b };
 			return [ o.token, a, b ];
 		return tok.pos = p, null;
 	};
@@ -280,7 +259,6 @@ const Parser = new function() {
 		if (a && !o) return a;
 		b = p_expr_primary();
 		if (a && o && b)
-			// return { type:o.token, vala:a, valb:b };
 			return [ o.token, a, b ];
 		return tok.pos = p, null;
 	};
@@ -300,26 +278,6 @@ const Parser = new function() {
 
 
 	// debugging
-	this.showast = () => {
-		let out = '';
-		function show(obj, indent) {
-			if (obj instanceof Array) 
-				obj.forEach((k, i) => {
-					out += `${'\t'.repeat(indent)}---\n`;
-					show(k, indent);
-				});
-			else if (obj instanceof Object) 
-				Object.keys(obj).forEach(k => {
-					out += `${'\t'.repeat(indent)}${k} :: \n`;
-					show(obj[k], indent+1);
-				});
-			else 
-				out = out.substr(0, out.length-1) + `${obj}\n`;
-		}
-		show(this.prog, 0);
-		return out;
-	};
-
 	this.showlist = () => {
 		let out = '';
 		function show(list, indent) {
