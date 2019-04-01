@@ -55,6 +55,7 @@
 
 <script type="text/javascript" src="tokens.js"></script>
 <script type="text/javascript" src="parser.js"></script>
+<script type="text/javascript" src="lisper.js"></script>
 <script type="text/javascript" src="compilerjs.js"></script>
 
 <script type="text/javascript">
@@ -89,6 +90,11 @@ const runshow = (prog) => {
 		document.querySelector('#show-ast').innerHTML = Parser.showlist();
 		if (Parser.error()) 
 			return `Parser: ${Parser.error()}`, false;
+		// validate lisp
+		Lisper.parseList(Parser.prog);
+		// document.querySelector('#show-ast').innerHTML = Lisper.showlist();
+		if (Lisper.error())
+			return `Lisper: ${Lisper.error()}`, false;
 		// compile
 		Compiler.compile(Parser.prog);
 		document.querySelector('#show-output').innerHTML = Compiler.prog;

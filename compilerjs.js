@@ -65,7 +65,7 @@ const Compiler = new function() {
 	// compiler functions
 	const ci_func = (ln) => {
 		const name = ln[1].substr(1);
-		const args = ln[2];
+		const args = ln[2].map(a => a[1]);
 		outp(`const ${name} = (${args.join(', ')}) => {`);
 		outi();
 			// function lines

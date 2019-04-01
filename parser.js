@@ -72,7 +72,7 @@ const Parser = new function() {
 		type = p_type();
 		name = p_ident();
 		if (type && name) {
-			return [ `$${name.token}` ];
+			return [ 'define', `$${name.token}` ];
 		}
 		return tok.pos = p, null;
 	};
@@ -148,7 +148,7 @@ const Parser = new function() {
 		def = p_declare();
 		t = accept('operator', ';');
 		if (def && t)
-			return def.unshift('define'), def;
+			return def;
 		return tok.pos = p, null;
 	};
 	// assignment statement
@@ -292,7 +292,8 @@ const Parser = new function() {
 			});
 			out += ')';
 		}
-		show(this.prog, 0);
+		// show(this.prog, 0);
+		this.prog.forEach(l => ( show(l, 0), out += '\n' ));
 		return out;
 	};
 
