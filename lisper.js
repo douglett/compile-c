@@ -126,6 +126,7 @@ const Lisper = new function() {
 		pos += 2;
 		if (!v_varid()) return error = `set: expected identifier`, true;
 		if (!v_expr()) return error = `set: expected expression`, true;
+		if (error) return true;
 		if (!v_lend()) return error = `set: expected list-end`, true;
 		return true;
 	};
@@ -134,7 +135,9 @@ const Lisper = new function() {
 		if (list[pos] !== '(' || list[pos+1] !== 'if') return false;
 		pos += 2;
 		if (!v_expr()) return error = `if: expected expression`, true;
+		if (error) return true;
 		if (!v_block()) return error = `if: expected block`, true;
+		if (error) return true;
 		if (!v_lend()) return error = `if: expected list-end`, true;
 		return true;
 	};
@@ -143,7 +146,9 @@ const Lisper = new function() {
 		if (list[pos] !== '(' || list[pos+1] !== 'while') return false;
 		pos += 2;
 		if (!v_expr()) return error = `while: expected expression`, true;
+		if (error) return true;
 		if (!v_block()) return error = `while: expected block`, true;
+		if (error) return true;
 		if (!v_lend()) return error = `while: expected list-end`, true;
 		return true;
 	};
