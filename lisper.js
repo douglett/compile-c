@@ -43,36 +43,40 @@ const Lisper = new function() {
 	const v_num     = () => /^[0-9]+$/.test(list[pos]) ? (++pos, true) : false;
 
 
-	const v_atom = () => {
-		typeof list[pos] === 'string' && list[pos] !== '(' && list[pos] !== ')'
-			? (++pos, true) : false;
-	};
-	const v_list = () => {
-		if (!v_lstart()) return false;
-		// debugger
-		while (pos < list.length)
-			if      (list[pos] === ')') break;
-			else if (v_list() || v_atom()) ;
-			else    return false;
-		if (!v_lend()) return false;
+	// const v_atom = () => {
+	// 	typeof list[pos] === 'string' && list[pos] !== '(' && list[pos] !== ')'
+	// 		? (++pos, true) : false;
+	// };
+	// const v_list = () => {
+	// 	if (!v_lstart()) return false;
+	// 	// debugger
+	// 	while (pos < list.length)
+	// 		if      (list[pos] === ')') break;
+	// 		else if (v_list() || v_atom()) ;
+	// 		else    return false;
+	// 	if (!v_lend()) return false;
+	// 	return true;
+	// };
+
+
+	const v_list = (type, v_inner) => {
+		if (list[pos] !== '(' || list[pos+1] !== type) return false;
+		pos += 2;
+		v_inner();
+		if (error) return true;
+		if (!v_lend()) error = `${type}: expected list-end`;
 		return true;
 	};
 
 
-	const v_define = () => {
-		if (list[pos] !== '(' || list[pos+1] !== 'define') return false;
-		pos += 2;
+	const v_define = () => v_list('define', () => {
 		if (!v_varid()) return error = `define: expected variable name`, true;
 		v_expr(); // optional expression
-		if (error) return true;
-		if (!v_lend()) return error = `define: expected list-end`, true;
+		if (error) ;
 		return true;
-	};
+	});
 
-
-	const v_defun = () => {
-		if (list[pos] !== '(' || list[pos+1] !== 'defun') return false;
-		pos += 2;
+	const v_defun = () => v_list('defun', () => {
 		if (!v_funcid()) return error = `define: expected function name`, true;
 		// argument list
 		if (!v_lstart()) return error = `define: expected argument list`, true;
@@ -82,9 +86,9 @@ const Lisper = new function() {
 			else if (!error) return error = `define: unexpected argument`, true;
 		if (!v_lend()) return error = `define: expected list-end`, true;
 		// function body
-		if (!v_block()) return error = `define: expected function block`, true;
+		if (!v_block()) error = `define: expected function block`;
 		return true;
-	};
+	});
 
 	const v_expr = () => {
 		// console.log(pos, list[pos], v_num(list[pos]))
@@ -114,6 +118,8 @@ const Lisper = new function() {
 			else if (v_set()) ;
 			else if (v_if()) ;
 			else if (v_while()) ;
+			else if (v_call()) ;
+			else if (v_return()) ;
 			else    return error = `block: unknown command [${list[pos] === '(' ? list[pos+1] : list[pos]}]`, true;
 			// else    return error = `block: unknown command`, true;
 		if (!v_lend()) error = `block: expected list-end`;
@@ -121,47 +127,43 @@ const Lisper = new function() {
 		return true;
 	};
 
-	const v_set = () => {
-		if (list[pos] !== '(' || list[pos+1] !== 'set') return false;
-		pos += 2;
+	const v_set = () => v_list('set', () => {
 		if (!v_varid()) return error = `set: expected identifier`, true;
 		if (!v_expr()) return error = `set: expected expression`, true;
-		if (error) return true;
-		if (!v_lend()) return error = `set: expected list-end`, true;
+		if (error) ;
 		return true;
-	};
+	});
 
-	const v_if = () => {
-		if (list[pos] !== '(' || list[pos+1] !== 'if') return false;
-		pos += 2;
+	const v_if = () => v_list('if', () => {
 		if (!v_expr()) return error = `if: expected expression`, true;
 		if (error) return true;
 		if (!v_block()) return error = `if: expected block`, true;
 		if (error) return true;
-		if (!v_lend()) return error = `if: expected list-end`, true;
-		return true;
-	};
+	});
 
-	const v_while = () => {
-		if (list[pos] !== '(' || list[pos+1] !== 'while') return false;
-		pos += 2;
+	const v_while = () => v_list('while', () => {
 		if (!v_expr()) return error = `while: expected expression`, true;
 		if (error) return true;
 		if (!v_block()) return error = `while: expected block`, true;
-		if (error) return true;
-		if (!v_lend()) return error = `while: expected list-end`, true;
+		if (error) ;
 		return true;
-	};
+	});
 
-	const v_call = () => {
-		if (list[pos] !== '(' || list[pos+1] !== 'call') return false;
-		pos += 2;
-		throw 'here';
-
+	const v_call = () => v_list('call', () => {
+		if (!v_funcid()) return error = `call: expected function name`, true;
+		// argument list
+		if (!v_lstart()) return error = `call: expected argument list`, true;
+		while (pos < list.length)
+			if      (list[pos] === ')') break;
+			else if (v_expr()) ;
+			else if (!error) return error = `call: unexpected argument`, true;
 		if (!v_lend()) return error = `call: expected list-end`, true;
-		return true;
-	};
+	});
 
+	const v_return = () => v_list('return', () => {
+		v_expr(); // optional
+		return true;
+	});
 
 
 	// debugging
