@@ -48,6 +48,9 @@
 	tab-size: 3;
 	/*overflow: hidden;*/
 }
+	#show-ast error {
+		color: red;
+	}
 </style>
 
 </body>
@@ -91,10 +94,11 @@ const runshow = (prog) => {
 		if (Parser.error()) 
 			return `Parser: ${Parser.error()}`, false;
 		// validate lisp
-		Lisper.parseList(Parser.prog);
-		// document.querySelector('#show-ast').innerHTML = Lisper.showlist();
+		Lisper.validateList(Parser.prog);
+		document.querySelector('#show-ast').innerHTML = Lisper.showlist();
 		if (Lisper.error())
 			return `Lisper: ${Lisper.error()}`, false;
+		throw "here";
 		// compile
 		Compiler.compile(Parser.prog);
 		document.querySelector('#show-output').innerHTML = Compiler.prog;
