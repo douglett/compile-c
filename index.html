@@ -49,7 +49,10 @@
 	/*overflow: hidden;*/
 }
 	#show-ast error {
-		color: red;
+		/*color: red;*/
+		color: white;
+		/*padding: 0 2px;*/
+		background: red;
 	}
 </style>
 
@@ -98,7 +101,7 @@ const runshow = (prog) => {
 		document.querySelector('#show-ast').innerHTML = Lisper.showlist();
 		if (Lisper.error())
 			return `Lisper: ${Lisper.error()}`, false;
-		throw "here";
+		// throw "here";
 		// compile
 		Compiler.compile(Parser.prog);
 		document.querySelector('#show-output').innerHTML = Compiler.prog;

@@ -25,14 +25,14 @@ const Lisper = new function() {
 
 
 	const validate = () => {
-		console.log(list);
+		// console.log(list);
 		error = '', pos = 0;
 		while (pos < list.length) 
 			if      (error) break;
 			else if (v_define()) ;
 			else if (v_defun()) ;
 			else    error = `script: expected define or defun`;
-		console.log(error, pos);
+		// console.log(error, pos);
 	};
 
 	// short validators
@@ -92,20 +92,22 @@ const Lisper = new function() {
 
 	const v_expr = () => {
 		// console.log(pos, list[pos], v_num(list[pos]))
-		if (v_varid()) return true;
-		if (v_num()) return true;
-		if (v_lstart()) {
-			if (!/^(\+|\-|\*|\\|==|<=|>=|<|>)$/.test(list[pos])) 
-				return error = `expression: unknown command`, true;
-			pos++;
-			while (pos < list.length)
-				if      (error) return true;
-				else if (list[pos] === ')') break;
-				else    v_expr();
-			if (!v_lend()) error = `expression: expected list-end`;
-			return true;
+		if      (v_varid()) ;
+		else if (v_num()) ;
+		else if (v_call()) ;
+		else if (v_lstart()) {
+			if (/^(\+|\-|\*|\\|==|<=|>=|<|>)$/.test(list[pos])) {
+				pos++;
+				while (pos < list.length)
+					if      (error) return true;
+					else if (list[pos] === ')') break;
+					else    v_expr();
+				if (!v_lend()) error = `expression: expected list-end`;
+			}
+			else    error = `expression: unknown command`;
 		}
-		return false; // not an expression
+		else    return false; // not an expression
+		return true;
 	};
 
 	const v_block = () => {
@@ -164,6 +166,7 @@ const Lisper = new function() {
 		v_expr(); // optional
 		return true;
 	});
+
 
 
 	// debugging
