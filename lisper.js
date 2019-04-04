@@ -29,11 +29,22 @@ const Lisper = new function() {
 		error = '', pos = 0;
 		while (pos < list.length) 
 			if      (error) break;
-			else if (v_define()) ;
-			else if (v_defun()) ;
+			else if (is_command('define')) v_define();
+			else if (is_command('defun' )) v_defun();
 			else    error = `script: expected define or defun`;
 		// console.log(error, pos);
 	};
+
+
+	// identify next token(s)
+	const is_number     = () => /^[0-9]+$/.test(list[pos]) ? 1 : 0;
+	const is_identifier = () => /^[\$\@][A-Za-z_][A-Za-z0-9_]*$/.test(list[pos]) ? 1 : 0;
+	const is_id_var     = () => /^\$/.test(list[pos]) && is_identifier() ? 1 : 0;
+	const is_id_func    = () => /^\@/.test(list[pos]) && is_identifier() ? 1 : 0;
+	const is_lstart     = () => list[pos] === '(' ? 1 : 0;
+	const is_lend       = () => list[pos] === '(' ? 1 : 0;
+	const is_command    = (name) => is_lstart() && list[pos+1] === name ? 2 : 0;
+	const is_math       = () => '+ - * / == < > <= >='.split(' ').some(m => is_command(m)) ? 2 : 0;
 
 	// short validators
 	const v_lstart  = () => list[pos] === '(' ? (++pos, true) : false;
@@ -43,22 +54,7 @@ const Lisper = new function() {
 	const v_num     = () => /^[0-9]+$/.test(list[pos]) ? (++pos, true) : false;
 
 
-	// const v_atom = () => {
-	// 	typeof list[pos] === 'string' && list[pos] !== '(' && list[pos] !== ')'
-	// 		? (++pos, true) : false;
-	// };
-	// const v_list = () => {
-	// 	if (!v_lstart()) return false;
-	// 	// debugger
-	// 	while (pos < list.length)
-	// 		if      (list[pos] === ')') break;
-	// 		else if (v_list() || v_atom()) ;
-	// 		else    return false;
-	// 	if (!v_lend()) return false;
-	// 	return true;
-	// };
-
-
+	// handles list start and stop
 	const v_list = (type, v_inner) => {
 		if (list[pos] !== '(' || list[pos+1] !== type) return false;
 		pos += 2;
@@ -68,6 +64,12 @@ const Lisper = new function() {
 		return true;
 	};
 
+
+	// const v_define = () => {
+	// 	vv_command('define');
+	// 	vv_varid();
+	// 	vv_expression();
+	// };
 
 	const v_define = () => v_list('define', () => {
 		if (!v_varid()) return error = `define: expected variable name`, true;
@@ -82,7 +84,7 @@ const Lisper = new function() {
 		if (!v_lstart()) return error = `define: expected argument list`, true;
 		while (pos < list.length)
 			if      (list[pos] === ')') break;
-			else if (v_define()) ;
+			else if (is_command('define')) v_define();
 			else if (!error) return error = `define: unexpected argument`, true;
 		if (!v_lend()) return error = `define: expected list-end`, true;
 		// function body
@@ -116,7 +118,7 @@ const Lisper = new function() {
 		while (pos < list.length)
 			if      (error) return true;
 			else if (list[pos] === ')') break;
-			else if (v_define()) ;
+			else if (is_command('define')) v_define();
 			else if (v_set()) ;
 			else if (v_if()) ;
 			else if (v_while()) ;
