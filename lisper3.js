@@ -18,6 +18,7 @@ const Lisper3 = new function() {
 	this.validate = (list) => {
 		try {
 			prog = list;
+			env.clear();
 			return script(list);
 		}
 		catch(e) {
@@ -26,6 +27,27 @@ const Lisper3 = new function() {
 			err = e;
 			return false;
 		}
+	};
+
+
+	// environment
+	const env = new function() {
+		let def = [];
+		let func = [];
+		// let pos = 0;
+		// this.stack = () => pos = def.length;
+		// this.unstack = () => def.splice(pos), pos = 0;
+		this.clear = () => (def = [], func = []);
+		this.define = (ls) => {
+			// def.forEach(d => d[1] === ls[1] && error(ls, 1, `variable already defined: ${ls[1]}`));
+			def.push(ls);
+			console.log('define', ls[1]);
+		};
+		this.defun = (ls) => {
+			func.forEach(fn => fn[1] === ls[1] && error(ls, 1, `function already defined: ${ls[1]}`));
+			func.push(ls);
+			console.log('defun', ls[1]);
+		};
 	};
 
 
@@ -53,13 +75,15 @@ const Lisper3 = new function() {
 		});
 		return true;
 	};
-	const list = (ls, pos) => is_list(ls[pos]) || error(ls, pos, `expected list`);
-	const lstype = (ls, name) => is_lstype(ls, name) || error(ls, 1, `expected list: ${name}`);
-	const varname = (ls, pos) => is_varname(ls[pos]) || error(ls, pos, `expected variable-name`);
+	const list     = (ls, pos) => is_list(ls[pos]) || error(ls, pos, `expected list`);
+	const lstype   = (ls, name) => is_lstype(ls, name) || error(ls, 1, `expected list: ${name}`);
+	const varname  = (ls, pos) => is_varname(ls[pos]) || error(ls, pos, `expected variable-name`);
 	const funcname = (ls, pos) => is_funcname(ls[pos]) || error(ls, pos, `expected function-name`);
 	const define = (ls) => {
 		lstype(ls, 'define');
 		varname(ls, 1);
+		// console.log('define', ls[1]);
+		env.define(ls);
 		ls[2] && expression(ls, 2);
 		return true;
 	};
@@ -67,15 +91,12 @@ const Lisper3 = new function() {
 		lstype(ls, 'defun');
 		funcname(ls, 1);
 		list(ls, 2) && defargs(ls[2]);
+		// console.log('defun', ls[1], ls[2].length);
+		env.defun(ls);
 		list(ls, 3) && block(ls[3]);
 		return true;
 	};
-	const defargs = (ls) => {
-		ls.forEach((l, i) => is_lstype(l, `define`) 
-			? define(l) 
-			: error(ls, i, `expected define in arguments`));
-		return true;
-	};
+	const defargs = (ls) => !ls.forEach((l, i) => list(ls, i) && define(l));
 	const block = (ls) => {
 		ls.forEach((l, i) => {
 			if      (is_lstype(l, 'define')) define(l);
@@ -105,10 +126,7 @@ const Lisper3 = new function() {
 		list(ls, 2) && callargs(ls[2]);
 		return true;
 	};
-	const callargs = (ls) => {
-		ls.forEach((l, i) => expression(ls, i));
-		return true;
-	};
+	const callargs = (ls) => !ls.forEach((l, i) => expression(ls, i));
 
 
 
