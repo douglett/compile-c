@@ -61,11 +61,14 @@
 
 <script type="text/javascript" src="tokens.js"></script>
 <script type="text/javascript" src="parser.js"></script>
-<script type="text/javascript" src="lisper.js"></script>
-<script type="text/javascript" src="lisper2.js"></script>
+<!-- <script type="text/javascript" src="lisper.js"></script> -->
+<!-- <script type="text/javascript" src="lisper2.js"></script> -->
+<script type="text/javascript" src="lisper3.js"></script>
 <script type="text/javascript" src="compilerjs.js"></script>
 
 <script type="text/javascript">
+'use strict';
+
 let prog = 
 `int test;
 int testy=10;
@@ -104,8 +107,11 @@ const runshow = (prog) => {
 		// if (Lisper.error())
 		// 	return `Lisper: ${Lisper.error()}`, false;
 
-		Lisper2.validate(Parser.prog);
-		document.querySelector('#show-ast').innerHTML = Lisper2.showlist();
+		// Lisper2.validate(Parser.prog);
+		// document.querySelector('#show-ast').innerHTML = Lisper2.showlist();
+
+		Lisper3.validate(Parser.prog);
+		document.querySelector('#show-ast').innerHTML = Lisper3.showlist();
 
 		throw "here";
 		// compile
