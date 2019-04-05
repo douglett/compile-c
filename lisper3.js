@@ -32,16 +32,16 @@ const Lisper3 = new function() {
 
 	// environment
 	const env = new function() {
-		let def = [];
-		let func = [];
-		// let pos = 0;
-		// this.stack = () => pos = def.length;
-		// this.unstack = () => def.splice(pos), pos = 0;
-		this.clear = () => (def = [], func = []);
+		let defg = [], defl = [], func = [];
+		let context = 'global';
+		this.clear = () => (defg = [], defl = [], func = []);
+		this.contextGlobal = () => context = 'global';
+		this.contextLocal = () => (context = 'local', defl = []);
 		this.define = (ls) => {
-			// def.forEach(d => d[1] === ls[1] && error(ls, 1, `variable already defined: ${ls[1]}`));
+			let def = context === 'global' ? defg : defl;
+			def.forEach(d => d[1] === ls[1] && error(ls, 1, `variable already defined: ${ls[1]}`));
 			def.push(ls);
-			console.log('define', ls[1]);
+			console.log('define', context, ls[1]);
 		};
 		this.defun = (ls) => {
 			func.forEach(fn => fn[1] === ls[1] && error(ls, 1, `function already defined: ${ls[1]}`));
@@ -49,6 +49,10 @@ const Lisper3 = new function() {
 			console.log('defun', ls[1]);
 		};
 	};
+
+
+	// env_context = '';
+	// env_define = (type, name, ls)
 
 
 	// helpers
@@ -69,20 +73,20 @@ const Lisper3 = new function() {
 	const script = (ls) => {
 		is_list(ls) || error(ls, -1, `script: expected list`);
 		ls.forEach((l, i) => {
+			env.contextGlobal();
 			is_lstype(l, 'define') && define(l)
 			|| is_lstype(l, 'defun' ) && defun(l)
 			|| error(l, i, `expected define or defun`);
 		});
 		return true;
 	};
-	const list     = (ls, pos) => is_list(ls[pos]) || error(ls, pos, `expected list`);
+	const list     = (ls, pos)  => is_list(ls[pos]) || error(ls, pos, `expected list`);
 	const lstype   = (ls, name) => is_lstype(ls, name) || error(ls, 1, `expected list: ${name}`);
-	const varname  = (ls, pos) => is_varname(ls[pos]) || error(ls, pos, `expected variable-name`);
-	const funcname = (ls, pos) => is_funcname(ls[pos]) || error(ls, pos, `expected function-name`);
+	const varname  = (ls, pos)  => is_varname(ls[pos]) || error(ls, pos, `expected variable-name`);
+	const funcname = (ls, pos)  => is_funcname(ls[pos]) || error(ls, pos, `expected function-name`);
 	const define = (ls) => {
 		lstype(ls, 'define');
 		varname(ls, 1);
-		// console.log('define', ls[1]);
 		env.define(ls);
 		ls[2] && expression(ls, 2);
 		return true;
@@ -90,9 +94,8 @@ const Lisper3 = new function() {
 	const defun = (ls) => {
 		lstype(ls, 'defun');
 		funcname(ls, 1);
+		env.defun(ls), env.contextLocal();
 		list(ls, 2) && defargs(ls[2]);
-		// console.log('defun', ls[1], ls[2].length);
-		env.defun(ls);
 		list(ls, 3) && block(ls[3]);
 		return true;
 	};
