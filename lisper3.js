@@ -13,12 +13,15 @@
 
 const Lisper3 = new function() {
 	let prog = [];
+	let state = [];
+	let state_stack = 0;
 	let err = null;
 
 	this.validate = (list) => {
 		try {
 			prog = list;
-			env.clear();
+			// env.clear();
+			state = [], state_stack = 0;
 			return script(list);
 		}
 		catch(e) {
@@ -30,29 +33,15 @@ const Lisper3 = new function() {
 	};
 
 
-	// environment
-	const env = new function() {
-		let defg = [], defl = [], func = [];
-		let context = 'global';
-		this.clear = () => (defg = [], defl = [], func = []);
-		this.contextGlobal = () => context = 'global';
-		this.contextLocal = () => (context = 'local', defl = []);
-		this.define = (ls) => {
-			let def = context === 'global' ? defg : defl;
-			def.forEach(d => d[1] === ls[1] && error(ls, 1, `variable already defined: ${ls[1]}`));
-			def.push(ls);
-			console.log('define', context, ls[1]);
-		};
-		this.defun = (ls) => {
-			func.forEach(fn => fn[1] === ls[1] && error(ls, 1, `function already defined: ${ls[1]}`));
-			func.push(ls);
-			console.log('defun', ls[1]);
-		};
+	// define state and block counting
+	const state_push   = () => ++state_stack;
+	const state_pop    = () => (--state_stack, state = state.filter(s => s.stack <= state_stack));
+	const state_global = () => (state_stack = 0, state = state.filter(s => s.stack <= state_stack));
+	const state_define = (ls) => {
+		state.forEach(d => d.name === ls[1] && d.stack === state_stack && error(ls, 1, `already defined: ${ls[1]}`));
+		state.push({ name:ls[1], stack:state_stack, def:ls });
+		console.log(`defined: ${ls[1]} [${state_stack}]`);
 	};
-
-
-	// env_context = '';
-	// env_define = (type, name, ls)
 
 
 	// helpers
@@ -73,10 +62,10 @@ const Lisper3 = new function() {
 	const script = (ls) => {
 		is_list(ls) || error(ls, -1, `script: expected list`);
 		ls.forEach((l, i) => {
-			env.contextGlobal();
-			is_lstype(l, 'define') && define(l)
-			|| is_lstype(l, 'defun' ) && defun(l)
-			|| error(l, i, `expected define or defun`);
+			state_global();
+			if      (is_lstype(l, 'define')) define(l);
+			else if (is_lstype(l, 'defun' )) defun(l);
+			else    error(l, i, `expected define or defun`);
 		});
 		return true;
 	};
@@ -87,14 +76,16 @@ const Lisper3 = new function() {
 	const define = (ls) => {
 		lstype(ls, 'define');
 		varname(ls, 1);
-		env.define(ls);
+		// env.define(ls);
+		state_define(ls);
 		ls[2] && expression(ls, 2);
 		return true;
 	};
 	const defun = (ls) => {
 		lstype(ls, 'defun');
 		funcname(ls, 1);
-		env.defun(ls), env.contextLocal();
+		// env.defun(ls), env.contextLocal();
+		state_define(ls), state_push();
 		list(ls, 2) && defargs(ls[2]);
 		list(ls, 3) && block(ls[3]);
 		return true;
