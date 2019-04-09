@@ -75,7 +75,7 @@ const Compiler = new function() {
 			if (!/^\s*return/.test(out[out.length-1]))
 				outp(`return 0;`);
 		outj();
-		outp(`}`);
+		outp(`};`);
 	};
 
 	const ci_line = (ln) => {

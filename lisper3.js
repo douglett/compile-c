@@ -19,9 +19,10 @@ const Lisper3 = new function() {
 
 	this.validate = (list) => {
 		try {
+			err = null, state = [], state_stack = 0; // clear errors && reset call stack state
+			is_list(list) || error(null, -1, `script: expected list`);
 			prog = list;
-			// env.clear();
-			state = [], state_stack = 0;
+			build_vtable();
 			return script(list);
 		}
 		catch(e) {
@@ -30,6 +31,26 @@ const Lisper3 = new function() {
 			err = e;
 			return false;
 		}
+	};
+	this.error = () => {
+		return err ? err.msg : '';
+	};
+
+
+	// predefine global functions and vars
+	const build_vtable = () => {
+		// console.log('vtable');
+		// // define
+		// prog.forEach(ls => {
+		// 	if (is_list(ls) && is_lstype(ls, 'define')) {
+		// 		console.log('define', ls);
+		// 	}
+		// });
+		// // defun
+		// prog.forEach(ls => {
+		// 	if (is_list(ls) && is_lstype(ls, 'defun' )) console.log('defun', ls);
+		// });
+		// throw 'stop';
 	};
 
 
@@ -40,7 +61,13 @@ const Lisper3 = new function() {
 	const state_define = (ls) => {
 		state.forEach(d => d.name === ls[1] && d.stack === state_stack && error(ls, 1, `already defined: ${ls[1]}`));
 		state.push({ name:ls[1], stack:state_stack, def:ls });
-		console.log(`defined: ${ls[1]} [${state_stack}]`);
+		// console.log(`defined: ${ls[1]} [${state_stack}]`);
+	};
+	const state_vtable = (name) => {
+		console.log('vtable', name);
+		return state.some(d => d.name === name);
+		// error(ls, pos, `undefined var: ${ls[pos]}`);
+		// return true;
 	};
 
 
@@ -60,7 +87,7 @@ const Lisper3 = new function() {
 
 	// expect definition
 	const script = (ls) => {
-		is_list(ls) || error(ls, -1, `script: expected list`);
+		// is_list(ls) || error(ls, -1, `script: expected list`);
 		ls.forEach((l, i) => {
 			state_global();
 			if      (is_lstype(l, 'define')) define(l);
@@ -73,10 +100,11 @@ const Lisper3 = new function() {
 	const lstype   = (ls, name) => is_lstype(ls, name) || error(ls, 1, `expected list: ${name}`);
 	const varname  = (ls, pos)  => is_varname(ls[pos]) || error(ls, pos, `expected variable-name`);
 	const funcname = (ls, pos)  => is_funcname(ls[pos]) || error(ls, pos, `expected function-name`);
+	const vardef   = (ls, pos)  => varname(ls, pos) && state_vtable(ls[pos]) || error(ls, pos, `undefined variable: ${ls[pos]}`);
+	const funcdef  = (ls, pos)  => funcname(ls, pos) && state_vtable(ls[pos]) || error(ls, pos, `undefined function: ${ls[pos]}`);
 	const define = (ls) => {
 		lstype(ls, 'define');
 		varname(ls, 1);
-		// env.define(ls);
 		state_define(ls);
 		ls[2] && expression(ls, 2);
 		return true;
@@ -84,7 +112,6 @@ const Lisper3 = new function() {
 	const defun = (ls) => {
 		lstype(ls, 'defun');
 		funcname(ls, 1);
-		// env.defun(ls), env.contextLocal();
 		state_define(ls), state_push();
 		list(ls, 2) && defargs(ls[2]);
 		list(ls, 3) && block(ls[3]);
@@ -94,7 +121,7 @@ const Lisper3 = new function() {
 	const block = (ls) => {
 		ls.forEach((l, i) => {
 			if      (is_lstype(l, 'define')) define(l);
-			else if (is_lstype(l, 'set')) varname(l, 1) && expression(l, 2);
+			else if (is_lstype(l, 'set')) vardef(l, 1) && expression(l, 2);
 			else if (is_lstype(l, 'if')) expression(l, 1) && list(l, 2) && block(l[2]);
 			else if (is_lstype(l, 'while')) expression(l, 1) && list(l, 2) && block(l[2]);
 			else if (is_lstype(l, 'return')) l[1] && expression(l, 1);
@@ -106,7 +133,7 @@ const Lisper3 = new function() {
 	const expression = (ls, pos) => {
 		const ex = ls[pos];
 		// console.log('expression', ex);
-		if      (is_varname(ex)) ;
+		if      (is_varname(ex)) vardef(ls, pos);
 		else if (is_number(ex)) ;
 		else if (is_lstype(ex, 'call')) call(ex);
 		else if (is_math(ex)) expression(ex, 1) && expression(ex, 2);
@@ -116,7 +143,7 @@ const Lisper3 = new function() {
 	const call = (ls) => {
 		// console.log('call', ls);
 		lstype(ls, 'call');
-		funcname(ls, 1);
+		funcdef(ls, 1);
 		list(ls, 2) && callargs(ls[2]);
 		return true;
 	};
