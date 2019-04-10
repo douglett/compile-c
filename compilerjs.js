@@ -66,10 +66,12 @@ const Compiler = new function() {
 	const ci_func = (ln) => {
 		const name = ln[1].substr(1);
 		const args = ln[2].map(a => a[1]);
+		const body = ln[3];
+		if (!body) return; // ignore function prototypes
 		outp(`const ${name} = (${args.join(', ')}) => {`);
 		outi();
 			// function lines
-			ln[3].some(l => ( ci_line(l), error ));
+			body.some(l => ( ci_line(l), error ));
 			if (error) return true;
 			// end function
 			if (!/^\s*return/.test(out[out.length-1]))

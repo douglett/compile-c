@@ -22,7 +22,7 @@ const Lisper3 = new function() {
 			err = null, state = [], state_stack = 0; // clear errors && reset call stack state
 			is_list(list) || error(null, -1, `script: expected list`);
 			prog = list;
-			build_vtable();
+			hoist();
 			return script(list);
 		}
 		catch(e) {
@@ -37,42 +37,19 @@ const Lisper3 = new function() {
 	};
 
 
-	// predefine global functions and vars
-	const build_vtable = () => {
-		// console.log('vtable');
-		// // define
-		// prog.forEach(ls => {
-		// 	if (is_list(ls) && is_lstype(ls, 'define')) {
-		// 		console.log('define', ls);
-		// 	}
-		// });
-		// // defun
-		// prog.forEach(ls => {
-		// 	if (is_list(ls) && is_lstype(ls, 'defun' )) console.log('defun', ls);
-		// });
-		// throw 'stop';
-	};
-
-
-	// define state and block counting
-	const state_push   = () => ++state_stack;
-	const state_pop    = () => (--state_stack, state = state.filter(s => s.stack <= state_stack));
-	const state_global = () => (state_stack = 0, state = state.filter(s => s.stack <= state_stack));
-	const state_define = (ls) => {
-		state.forEach(d => d.name === ls[1] && d.stack === state_stack && error(ls, 1, `already defined: ${ls[1]}`));
-		state.push({ name:ls[1], stack:state_stack, def:ls });
-		// console.log(`defined: ${ls[1]} [${state_stack}]`);
-	};
-	const state_vtable = (name) => {
-		console.log('vtable', name);
-		return state.some(d => d.name === name);
-		// error(ls, pos, `undefined var: ${ls[pos]}`);
-		// return true;
-	};
-
-
 	// helpers
 	const error = (ls, pos, msg) => { throw { list:ls, pos:pos, msg:msg }; };
+
+
+	// modify list
+	const hoist = () => {
+		// inject global method definitions (temp?)
+		prog.unshift([ 'defun', '@puti', [['define', '$i']] ]);
+		// hoist predefined functions
+		// prog.forEach(ls => {
+
+		// });
+	};
 
 	
 	// definition checkers
@@ -97,11 +74,11 @@ const Lisper3 = new function() {
 		return true;
 	};
 	const list     = (ls, pos)  => is_list(ls[pos]) || error(ls, pos, `expected list`);
-	const lstype   = (ls, name) => is_lstype(ls, name) || error(ls, 1, `expected list: ${name}`);
+	const lstype   = (ls, name) => is_lstype(ls, name) || error(ls, -1, `expected list: ${name}`);
 	const varname  = (ls, pos)  => is_varname(ls[pos]) || error(ls, pos, `expected variable-name`);
 	const funcname = (ls, pos)  => is_funcname(ls[pos]) || error(ls, pos, `expected function-name`);
-	const vardef   = (ls, pos)  => varname(ls, pos) && state_vtable(ls[pos]) || error(ls, pos, `undefined variable: ${ls[pos]}`);
-	const funcdef  = (ls, pos)  => funcname(ls, pos) && state_vtable(ls[pos]) || error(ls, pos, `undefined function: ${ls[pos]}`);
+	const vardef   = (ls, pos)  => varname(ls, pos) && state_is_defined(ls[pos]) || error(ls, pos, `undefined variable: ${ls[pos]}`);
+	const funcdef  = (ls, pos)  => funcname(ls, pos) && state_is_defuned(ls) || error(ls, pos, `undefined function: ${ls[pos]}`);
 	const define = (ls) => {
 		lstype(ls, 'define');
 		varname(ls, 1);
@@ -112,9 +89,10 @@ const Lisper3 = new function() {
 	const defun = (ls) => {
 		lstype(ls, 'defun');
 		funcname(ls, 1);
-		state_define(ls), state_push();
+		list(ls, 2) ; //&& defargs(ls[2]);
+		state_defun(ls), state_push();
 		list(ls, 2) && defargs(ls[2]);
-		list(ls, 3) && block(ls[3]);
+		ls[3] && list(ls, 3) && block(ls[3]); // if not prototype, parse block
 		return true;
 	};
 	const defargs = (ls) => !ls.forEach((l, i) => list(ls, i) && define(l));
@@ -148,6 +126,33 @@ const Lisper3 = new function() {
 		return true;
 	};
 	const callargs = (ls) => !ls.forEach((l, i) => expression(ls, i));
+
+
+	// program state: var/func definitions and block counting
+	const state_push   = () => ++state_stack;
+	const state_pop    = () => (--state_stack, state = state.filter(s => s.stack <= state_stack));
+	const state_global = () => (state_stack = 0, state = state.filter(s => s.stack <= state_stack));
+	const state_is_defined = (name) => state.some(d => d.name === name);
+	const state_is_defuned = (ls) => state.some(d => d.name === ls[1]);
+	const state_define = (ls) => {
+		state.forEach(d => {
+			if (d.name !== ls[1]) return;
+			if (d.stack === state_stack) error(ls, 1, `var already defined: ${ls[1]}`);
+		});
+		state.push({ name:ls[1], stack:state_stack, def:ls });
+		// console.log(`state_define: ${ls[1]} [${state_stack}]`);
+		return true;
+	};
+	const state_defun  = (ls) => {
+		state.forEach(d => {
+			if (d.name !== ls[1]) return;
+			if (is_list(d.def[3]) && is_list(ls[3])) error(ls, -1, `redefinition of function: ${d.name}`);
+			if (d[2].length !== ls[2].length) error(ls, -1, `function arguments differ from prototype: ${d.name}`);
+		});
+		state.push({ name:ls[1], stack:0, def:ls });
+		// console.log(`state_defun: ${ls[1]}`);
+		return true;
+	};
 
 
 
