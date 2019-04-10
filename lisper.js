@@ -1,200 +1,182 @@
+// prog::        [ (define | defun)* ]
+// varname::     $identifier
+// funcname::    @identifier
+// define::      [ "define" varname expression? ]
+// defun::       [ "defun" funcname block ]
+// expression::  varname | number | [ (("+"|"-"|...) expression expression) | call ]
+// block::       [ (define | "return" expression | "set" varname expression | call | if | while ) ]
+// call::        [ "call" funcname [ expression* ] ]
+// if::          [ "if" expr block ]
+// while::       [ "while" expr block ]
+// 
 'use strict';
 
 const Lisper = new function() {
-	let error = '', pos = 0;
-	let list = [];
-	
-	this.validateList = (ls) => {
-		list = [];
-		const flatten = (l) => {
-			if (l instanceof Array)
-				list.push('('),
-				l.forEach(l => flatten(l)),
-				list.push(')');
-			else
-				list.push(l);
-		};
-		ls.forEach(l => flatten(l));
-		validate();
-	};
-	this.validate = (ls) => {
-		list = ls;
-		validate();
-	};
-	this.error = () => error;
+	let prog = [];
+	let state = [];
+	let state_stack = 0;
+	let err = null;
 
-
-	const validate = () => {
-		// console.log(list);
-		error = '', pos = 0;
-		while (pos < list.length) 
-			if      (error) break;
-			else if (is_command('define')) v_define();
-			else if (is_command('defun' )) v_defun();
-			else    error = `script: expected define or defun`;
-		// console.log(error, pos);
-	};
-
-
-	// identify next token(s)
-	const is_number     = () => /^[0-9]+$/.test(list[pos]) ? 1 : 0;
-	const is_identifier = () => /^[\$\@][A-Za-z_][A-Za-z0-9_]*$/.test(list[pos]) ? 1 : 0;
-	const is_id_var     = () => /^\$/.test(list[pos]) && is_identifier() ? 1 : 0;
-	const is_id_func    = () => /^\@/.test(list[pos]) && is_identifier() ? 1 : 0;
-	const is_lstart     = () => list[pos] === '(' ? 1 : 0;
-	const is_lend       = () => list[pos] === '(' ? 1 : 0;
-	const is_command    = (name) => is_lstart() && list[pos+1] === name ? 2 : 0;
-	const is_math       = () => '+ - * / == < > <= >='.split(' ').some(m => is_command(m)) ? 2 : 0;
-
-	// short validators
-	const v_lstart  = () => list[pos] === '(' ? (++pos, true) : false;
-	const v_lend    = () => list[pos] === ')' ? (++pos, true) : false;
-	const v_varid   = () => /^\$[A-Za-z_][A-Za-z0-9_]*$/.test(list[pos]) ? (++pos, true) : false;
-	const v_funcid  = () => /^\@[A-Za-z_][A-Za-z0-9_]*$/.test(list[pos]) ? (++pos, true) : false;
-	const v_num     = () => /^[0-9]+$/.test(list[pos]) ? (++pos, true) : false;
-
-
-	// handles list start and stop
-	const v_list = (type, v_inner) => {
-		if (list[pos] !== '(' || list[pos+1] !== type) return false;
-		pos += 2;
-		v_inner();
-		if (error) return true;
-		if (!v_lend()) error = `${type}: expected list-end`;
-		return true;
-	};
-
-
-	// const v_define = () => {
-	// 	vv_command('define');
-	// 	vv_varid();
-	// 	vv_expression();
-	// };
-
-	const v_define = () => v_list('define', () => {
-		if (!v_varid()) return error = `define: expected variable name`, true;
-		v_expr(); // optional expression
-		if (error) ;
-		return true;
-	});
-
-	const v_defun = () => v_list('defun', () => {
-		if (!v_funcid()) return error = `define: expected function name`, true;
-		// argument list
-		if (!v_lstart()) return error = `define: expected argument list`, true;
-		while (pos < list.length)
-			if      (list[pos] === ')') break;
-			else if (is_command('define')) v_define();
-			else if (!error) return error = `define: unexpected argument`, true;
-		if (!v_lend()) return error = `define: expected list-end`, true;
-		// function body
-		if (!v_block()) error = `define: expected function block`;
-		return true;
-	});
-
-	const v_expr = () => {
-		// console.log(pos, list[pos], v_num(list[pos]))
-		if      (v_varid()) ;
-		else if (v_num()) ;
-		else if (v_call()) ;
-		else if (v_lstart()) {
-			if (/^(\+|\-|\*|\\|==|<=|>=|<|>)$/.test(list[pos])) {
-				pos++;
-				while (pos < list.length)
-					if      (error) return true;
-					else if (list[pos] === ')') break;
-					else    v_expr();
-				if (!v_lend()) error = `expression: expected list-end`;
-			}
-			else    error = `expression: unknown command`;
+	this.validate = (list) => {
+		try {
+			err = null, state = [], state_stack = 0; // clear errors && reset call stack state
+			is_list(list) || error(null, -1, `script: expected list`);
+			prog = list;
+			hoist();
+			return script(list);
 		}
-		else    return false; // not an expression
-		return true;
+		catch(e) {
+			if (e instanceof Error) throw e;
+			console.log('error', e);
+			err = e;
+			return false;
+		}
+	};
+	this.error = () => {
+		return err ? err.msg : '';
 	};
 
-	const v_block = () => {
-		if (list[pos] !== '(') return false;
-		pos++;
-		while (pos < list.length)
-			if      (error) return true;
-			else if (list[pos] === ')') break;
-			else if (is_command('define')) v_define();
-			else if (v_set()) ;
-			else if (v_if()) ;
-			else if (v_while()) ;
-			else if (v_call()) ;
-			else if (v_return()) ;
-			else    return error = `block: unknown command [${list[pos] === '(' ? list[pos+1] : list[pos]}]`, true;
-			// else    return error = `block: unknown command`, true;
-		if (!v_lend()) error = `block: expected list-end`;
-		// debugger
-		return true;
+
+	// helpers
+	const error = (ls, pos, msg) => { throw { list:ls, pos:pos, msg:msg }; };
+
+
+	// modify list
+	const hoist = () => {
+		// inject global method definitions (temp?)
+		prog.unshift([ 'defun', '@puti', [['define', '$i']] ]);
+		// hoist predefined functions
+		// prog.forEach(ls => {
+
+		// });
 	};
 
-	const v_set = () => v_list('set', () => {
-		if (!v_varid()) return error = `set: expected identifier`, true;
-		if (!v_expr()) return error = `set: expected expression`, true;
-		if (error) ;
+	
+	// definition checkers
+	const is_list       = (ls) => ls instanceof Array;
+	const is_lstype     = (ls, name) => is_list(ls) && ls[0] === name;
+	const is_varname    = (name) => /^\$[A-Za-z_][A-Za-z0-9_]*$/.test(name);
+	const is_funcname   = (name) => /^\@[A-Za-z_][A-Za-z0-9_]*$/.test(name);
+	const is_number     = (val) => /^[0-9]+$/.test(val);
+	const is_math       = (ls) => is_list(ls) && /^(\+|\-|\*|\\|==|<=|>=|<|>)$/.test(ls[0]);
+	const is_expression = (ls) => is_varname(ls) || is_number(ls) || is_math(ls) || is_lstype(ls, 'call');
+	
+
+	// expect definition
+	const script = (ls) => {
+		// is_list(ls) || error(ls, -1, `script: expected list`);
+		ls.forEach((l, i) => {
+			state_global();
+			if      (is_lstype(l, 'define')) define(l);
+			else if (is_lstype(l, 'defun' )) defun(l);
+			else    error(l, i, `expected define or defun`);
+		});
 		return true;
-	});
-
-	const v_if = () => v_list('if', () => {
-		if (!v_expr()) return error = `if: expected expression`, true;
-		if (error) return true;
-		if (!v_block()) return error = `if: expected block`, true;
-		if (error) return true;
-	});
-
-	const v_while = () => v_list('while', () => {
-		if (!v_expr()) return error = `while: expected expression`, true;
-		if (error) return true;
-		if (!v_block()) return error = `while: expected block`, true;
-		if (error) ;
+	};
+	const list     = (ls, pos)  => is_list(ls[pos]) || error(ls, pos, `expected list`);
+	const lstype   = (ls, name) => is_lstype(ls, name) || error(ls, -1, `expected list: ${name}`);
+	const varname  = (ls, pos)  => is_varname(ls[pos]) || error(ls, pos, `expected variable-name`);
+	const funcname = (ls, pos)  => is_funcname(ls[pos]) || error(ls, pos, `expected function-name`);
+	const vardef   = (ls, pos)  => varname(ls, pos) && state_is_defined(ls[pos]) || error(ls, pos, `undefined variable: ${ls[pos]}`);
+	const funcdef  = (ls, pos)  => funcname(ls, pos) && state_is_defuned(ls) || error(ls, pos, `undefined function: ${ls[pos]}`);
+	const define = (ls) => {
+		lstype(ls, 'define');
+		varname(ls, 1);
+		state_define(ls);
+		ls[2] && expression(ls, 2);
 		return true;
-	});
-
-	const v_call = () => v_list('call', () => {
-		if (!v_funcid()) return error = `call: expected function name`, true;
-		// argument list
-		if (!v_lstart()) return error = `call: expected argument list`, true;
-		while (pos < list.length)
-			if      (list[pos] === ')') break;
-			else if (v_expr()) ;
-			else if (!error) return error = `call: unexpected argument`, true;
-		if (!v_lend()) return error = `call: expected list-end`, true;
-	});
-
-	const v_return = () => v_list('return', () => {
-		v_expr(); // optional
+	};
+	const defun = (ls) => {
+		lstype(ls, 'defun');
+		funcname(ls, 1);
+		list(ls, 2) ; //&& defargs(ls[2]);
+		state_defun(ls), state_push();
+		list(ls, 2) && defargs(ls[2]);
+		ls[3] && list(ls, 3) && block(ls[3]); // if not prototype, parse block
 		return true;
-	});
+	};
+	const defargs = (ls) => !ls.forEach((l, i) => list(ls, i) && define(l));
+	const block = (ls) => {
+		ls.forEach((l, i) => {
+			if      (is_lstype(l, 'define')) define(l);
+			else if (is_lstype(l, 'set')) vardef(l, 1) && expression(l, 2);
+			else if (is_lstype(l, 'if')) expression(l, 1) && list(l, 2) && block(l[2]);
+			else if (is_lstype(l, 'while')) expression(l, 1) && list(l, 2) && block(l[2]);
+			else if (is_lstype(l, 'return')) l[1] && expression(l, 1);
+			else if (is_expression(l)) expression(ls, i);
+			else    error(ls, i, `unexpected in block`);
+		});
+		return true;
+	};
+	const expression = (ls, pos) => {
+		const ex = ls[pos];
+		// console.log('expression', ex);
+		if      (is_varname(ex)) vardef(ls, pos);
+		else if (is_number(ex)) ;
+		else if (is_lstype(ex, 'call')) call(ex);
+		else if (is_math(ex)) expression(ex, 1) && expression(ex, 2);
+		else    error(ls, pos, `unexpected in expression`);
+		return true;
+	};
+	const call = (ls) => {
+		// console.log('call', ls);
+		lstype(ls, 'call');
+		funcdef(ls, 1);
+		list(ls, 2) && callargs(ls[2]);
+		return true;
+	};
+	const callargs = (ls) => !ls.forEach((l, i) => expression(ls, i));
+
+
+	// program state: var/func definitions and block counting
+	const state_push   = () => ++state_stack;
+	const state_pop    = () => (--state_stack, state = state.filter(s => s.stack <= state_stack));
+	const state_global = () => (state_stack = 0, state = state.filter(s => s.stack <= state_stack));
+	const state_is_defined = (name) => state.some(d => d.name === name);
+	const state_is_defuned = (ls) => state.some(d => d.name === ls[1]);
+	const state_define = (ls) => {
+		state.forEach(d => {
+			if (d.name !== ls[1]) return;
+			if (d.stack === state_stack) error(ls, 1, `var already defined: ${ls[1]}`);
+		});
+		state.push({ name:ls[1], stack:state_stack, def:ls });
+		// console.log(`state_define: ${ls[1]} [${state_stack}]`);
+		return true;
+	};
+	const state_defun  = (ls) => {
+		state.forEach(d => {
+			if (d.name !== ls[1]) return;
+			if (is_list(d.def[3]) && is_list(ls[3])) error(ls, -1, `redefinition of function: ${d.name}`);
+			if (d[2].length !== ls[2].length) error(ls, -1, `function arguments differ from prototype: ${d.name}`);
+		});
+		state.push({ name:ls[1], stack:0, def:ls });
+		// console.log(`state_defun: ${ls[1]}`);
+		return true;
+	};
 
 
 
 	// debugging
 	this.showlist = () => {
-		let out = '', indent = 0, p = 0, last;
-		// get token, highlighting error position
-		const gettok = () => error && p === pos ? `<error>${list[p]}</error>` : list[p];
-		// main loop
-		for (p = 0; p < list.length; p++)
-		switch (list[p]) {
-			case '(':
-				out += (p > 0 ? '\n' : '') + '\t'.repeat(indent) + gettok();
-				last = 'open', indent++;
-				break;
-			case ')':
-				out += gettok();
-				last = 'close', indent--;
-				break;
-			default:
-				out += (last === 'close' ? '\n'+'\t'.repeat(indent) : '') 
-					+  (last === 'var' ? ' ' : '') 
-					+  gettok();
-				last = 'var';
+		let out = '';
+		function show(list, indent) {
+			out += `${'\t'.repeat(indent)}(`;
+			const errpos = err && err.list === list ? err.pos : -1;
+			let lastarr = 0;
+			list.forEach((k, i) => {
+				out += i === errpos ? '<error>' : '';
+				if (Array.isArray(k)) 
+					out += `\n`, lastarr = 1, show(k, indent+1);
+				else if (lastarr)
+					out += `\n${'\t'.repeat(indent+1)}${k}`, lastarr = 0;
+				else
+					out += (i > 0 ? ' ' : '') + k;
+				out += i === errpos ? '</error>' : '';
+			});
+			out += ')';
 		}
-		// show error, if given
-		if (error) out += `\n\n<error>${error} [${pos}]</error>`
+		prog.forEach(l => ( show(l, 0), out += '\n' ));
+		out += err ? `\n\n<error>${err.msg}</error>` : '';
 		return out;
 	};
 };
