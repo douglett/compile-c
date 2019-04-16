@@ -24,7 +24,7 @@ const Lisper = new function() {
 			err = null, state = [], state_stack = 0; // clear errors && reset call stack state
 			is_list(list) || error(null, -1, `script: expected list`);
 			prog = list;
-			hoist();
+			hoist(); // modifies list
 			return script(list);
 		}
 		catch(e) {
@@ -45,14 +45,14 @@ const Lisper = new function() {
 
 	// modify list
 	const hoist = () => {
-		// inject global method definitions (temp?)
+		// inject global method prototypes (temp?)
 		const predef = [];
-		predef.push([ 'defun', '@puti', [['define', '$i']] ]);
+		predef.push([ 'declare', '@puti', [['define', '$i']] ]);
 		// add prototypes for defined functions
 		prog.forEach(ls => {
 			if (!is_lstype(ls, 'defun')) return;
 			funcname(ls, 1) && list(ls, 2);
-			const fndef = [ 'defun', ls[1], [] ];
+			const fndef = [ 'declare', ls[1], [] ];
 			// console.log('here', fndef);
 			// arguments
 			ls[2].forEach((l, i) => {
@@ -82,7 +82,8 @@ const Lisper = new function() {
 	const script = (ls) => {
 		ls.forEach((l, i) => {
 			state_global();
-			if      (is_lstype(l, 'define')) define(l);
+			if      (is_lstype(l, 'declare')) declare(l);
+			else if (is_lstype(l, 'define')) define(l);
 			else if (is_lstype(l, 'defun' )) defun(l);
 			else    error(l, i, `expected define or defun`);
 		});
@@ -101,19 +102,21 @@ const Lisper = new function() {
 		ls[2] && expression(ls, 2);
 		return true;
 	};
-	// const defun_prototype = (ls) => {
-	// 	lstype(ls, 'defun');
-	// 	funcname(ls, 1);
-	// 	list(ls, 2);
-	// 	// ls[2].forEach(l => list(ls, i) &&)
-	// };
+	const declare = (ls) => {
+		// console.log(ls);
+		lstype(ls, 'declare');
+		funcname(ls, 1);
+		state_declare(ls), state_push();
+		list(ls, 2) && defargs(ls[2]);
+		return true;
+	};
 	const defun = (ls) => {
 		lstype(ls, 'defun');
 		funcname(ls, 1);
 		list(ls, 2) ; //&& defargs(ls[2]);
 		state_defun(ls), state_push();
 		list(ls, 2) && defargs(ls[2]);
-		ls[3] && list(ls, 3) && block(ls[3]); // if not prototype, parse block
+		list(ls, 3) && block(ls[3]); // parse block
 		return true;
 	};
 	const defargs = (ls) => !ls.forEach((l, i) => list(ls, i) && define(l));
@@ -151,12 +154,12 @@ const Lisper = new function() {
 
 
 	// program state: var/func definitions and block counting
-	const state_push   = () => ++state_stack;
-	const state_pop    = () => (--state_stack, state = state.filter(s => s.stack <= state_stack));
-	const state_global = () => (state_stack = 0, state = state.filter(s => s.stack <= state_stack));
+	const state_push    = () => ++state_stack;
+	const state_pop     = () => (--state_stack, state = state.filter(s => s.stack <= state_stack));
+	const state_global  = () => (state_stack = 0, state = state.filter(s => s.stack <= state_stack));
 	const state_is_defined = (name) => state.some(d => d.name === name);
 	const state_is_defuned = (ls) => state.some(d => d.name === ls[1]);
-	const state_define = (ls) => {
+	const state_define  = (ls) => {
 		state.forEach(d => {
 			if (d.name !== ls[1]) return;
 			if (d.stack === state_stack) error(ls, 1, `var already defined: ${ls[1]}`);
@@ -165,11 +168,18 @@ const Lisper = new function() {
 		// console.log(`state_define: ${ls[1]} [${state_stack}]`);
 		return true;
 	};
-	const state_defun  = (ls) => {
+	const state_declare = (ls) => {
+		state.forEach(d => {
+			if (d.name !== ls[1]) return;
+			if (d.def[2].length !== ls[2].length) error(ls, -1, `redefinition of function declaration: ${d.name}`);
+		});
+		state.push({ name:ls[1], stack:0, def:ls });
+	};
+	const state_defun   = (ls) => {
 		state.forEach(d => {
 			if (d.name !== ls[1]) return;
 			if (is_list(d.def[3]) && is_list(ls[3])) error(ls, -1, `redefinition of function: ${d.name}`);
-			if (d.def[2].length !== ls[2].length) error(ls, -1, `function arguments differ from prototype: ${d.name}`);
+			if (d.def[2].length !== ls[2].length) error(ls, -1, `redefinition of function: ${d.name}`);
 		});
 		state.push({ name:ls[1], stack:0, def:ls });
 		// console.log(`state_defun: ${ls[1]}`);

@@ -49,8 +49,9 @@ const Compiler = new function() {
 		// top level lines
 		prog.some(ln => {
 			if      (!Array.isArray(ln)) ;
-			else if (ln[0] === 'define') return ci_line(ln), error;
-			else if (ln[0] === 'defun' ) return ci_func(ln), error;
+			else if (ln[0] === 'declare') return error;
+			else if (ln[0] === 'define' ) return ci_line(ln), error;
+			else if (ln[0] === 'defun'  ) return ci_func(ln), error;
 			return error = `Compiler: expected define or defun`;
 		});
 		if (error) 
@@ -126,33 +127,7 @@ const Compiler = new function() {
 	const c_call = (call) => {
 		const name = call[1].substr(1);
 		const args = call[2].map(a => c_expr(a));
+		// no checking required - performed in lisper
 		return `${name}(${args.join(', ')})`;
-
-		// if (!CHECK_DEF) {
-		// 	const args = call.arguments.map(a => c_expr(a)).join(', ');
-		// 	return `${call.name}(${args})`;
-		// }
-		// // get function
-		// const args = call.arguments.map(a => c_expr(a));
-		// const fndef = getfunc(call.name, args.length);
-		// if (error) return fndef;
-		// // calculate args
-		// while (args.length < fndef.arguments.length) args.push('0'); // fill missing args
-		// return `${call.name}(${args.join(', ')})`;
 	};
-
-	const getfunc = (name, arglen) => {
-		// // special functions
-		// if (name === 'puti')
-		// 	return { name:'puti', type:'int', arguments:['i'] };
-		// // user defined functions
-		// const fndef = ast.functions.find(fn => fn.name === name);
-		// if (!fndef) 
-		// 	return error = `unknown function: ${name}`, `:${error}:`;
-		// // check arguments count
-		// if (fndef.arguments.length < arglen)
-		// 	return error = `too many arguments: expected ${fndef.arguments.length}`, `:${error}:`;
-		// return fndef;
-	};
-
 };
