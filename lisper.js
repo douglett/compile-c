@@ -82,10 +82,11 @@ const Lisper = new function() {
 	const script = (ls) => {
 		ls.forEach((l, i) => {
 			state_global();
-			if      (is_lstype(l, 'declare')) declare(l);
-			else if (is_lstype(l, 'define')) define(l);
+			if      (is_lstype(l, 'define')) define(l);
+			else if (is_lstype(l, 'data')) data(l);
+			else if (is_lstype(l, 'declare')) declare(l);
 			else if (is_lstype(l, 'defun' )) defun(l);
-			else    error(l, i, `expected define or defun`);
+			else    error(l, -1, `expected define or defun`);
 		});
 		return true;
 	};
@@ -100,6 +101,12 @@ const Lisper = new function() {
 		varname(ls, 1);
 		state_define(ls);
 		ls[2] && expression(ls, 2);
+		return true;
+	};
+	const data = (ls) => {
+		varname(ls, 1);
+		state_define(ls);
+		is_number(ls[2]) || error(ls, 2, `expected data length`);
 		return true;
 	};
 	const declare = (ls) => {
@@ -192,8 +199,9 @@ const Lisper = new function() {
 	this.showlist = () => {
 		let out = '';
 		function show(list, indent) {
-			out += `${'\t'.repeat(indent)}(`;
-			const errpos = err && err.list === list ? err.pos : -1;
+			const errpos = err && err.list === list ? err.pos : -2;
+			out += (errpos === -1 ? '<error>' : '')
+				+ `${'\t'.repeat(indent)}(`;
 			let lastarr = 0;
 			list.forEach((k, i) => {
 				out += i === errpos ? '<error>' : '';
@@ -205,7 +213,8 @@ const Lisper = new function() {
 					out += (i > 0 ? ' ' : '') + k;
 				out += i === errpos ? '</error>' : '';
 			});
-			out += ')';
+			out += ')'
+				+ (errpos === -1 ? '</error>' : '');
 		}
 		prog.forEach(l => ( show(l, 0), out += '\n' ));
 		out += err ? `\n\n<error>${err.msg}</error>` : '';

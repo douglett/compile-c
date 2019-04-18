@@ -24,9 +24,10 @@ const Parser = new function() {
 		const prog = this.prog = [];
 		let t;
 		while (!error) {
-			if      (t = p_declare_line()) prog.push(t);
+			if      (accept('EOF')) break;
+			else if (t = p_declare_line()) prog.push(t);
 			else if (t = p_function()) prog.push(t);
-			else break;
+			else    { error = error || `unexpected in main block: ${tok.peek().str()}`;  break; }
 		}
 		if (!error && !accept('EOF'))
 			error = `expected end of program (EOF): ${tok.peek().str()}`;
@@ -54,26 +55,37 @@ const Parser = new function() {
 
 
 	// declaration
-	const p_declare = () => p_declare_expr();
+	const p_declare = () => p_declare_array() || p_declare_expr() || p_declare_spec();
+	// array declaration
+	const p_declare_array = () => {
+		let p = tok.pos, def, ex, t;
+		if (def = p_declare_spec()) {
+			t = accept('operator', '[');
+			ex = accept('number');
+			t = t && accept('operator', ']');
+			if (t && ex)
+				return [ 'data', def[1], ex.token ];
+		}
+		return tok.pos = p, null;
+	};
 	// declaration with equals expression
 	const p_declare_expr = () => {
-		let p, def, ex, t;
-		if (!(def = p_declare_spec())) return null;
-		p = tok.pos;
-		t = accept('operator', '=');
-		ex = p_expr();
-		if (t && ex)
-			return def.push(ex), def;
-		return tok.pos = p, def;  // naked declaration
+		let p = tok.pos, def, ex, t;
+		if (def = p_declare_spec()) {
+			t = accept('operator', '=');
+			ex = p_expr();
+			if (t && ex)
+				return def.push(ex), def;
+		}
+		return tok.pos = p, null;
 	};
 	// declaration specifier (type name)
 	const p_declare_spec = () => {
 		let p = tok.pos, type, name;
 		type = p_type();
 		name = p_ident();
-		if (type && name) {
+		if (type && name) 
 			return [ 'define', `$${name.token}` ];
-		}
 		return tok.pos = p, null;
 	};
 

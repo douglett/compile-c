@@ -51,6 +51,7 @@ const Compiler = new function() {
 			if      (!Array.isArray(ln)) ;
 			else if (ln[0] === 'declare') return error;
 			else if (ln[0] === 'define' ) return ci_line(ln), error;
+			else if (ln[0] === 'data'   ) return ci_line(ln), error;
 			else if (ln[0] === 'defun'  ) return ci_func(ln), error;
 			return error = `Compiler: expected define or defun`;
 		});
@@ -85,9 +86,11 @@ const Compiler = new function() {
 		let v;
 		switch (ln[0]) {
 		case 'define':
-			// defines.push(ln[1]);
 			v = ln[2] ? c_expr(ln[2]) : 0;
 			return outp(`let ${ln[1]} = ${v};`);
+		case 'data':
+			v = ln[2];
+			return outp(`let ${ln[1]} = new Uint32Array(${ln[2]});`)
 		case 'set':
 			return outp(`${ln[1]} = ${c_expr(ln[2])};`);
 		case 'call':
