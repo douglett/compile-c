@@ -218,6 +218,7 @@ const Parser = new function() {
 		let def, t;
 		def = p_if_if();
 		if (!def) return null;
+		if (t = p_if_else_if()) def.push('elseif', t[1], t[2]);
 		if (t = p_if_else()) def.push('else', t[1]);
 		return def;
 	};
@@ -225,14 +226,33 @@ const Parser = new function() {
 	const p_if_if = () => {
 		let p = tok.pos, s, e, t, def;
 		s = accept('word', 'if');
-		t = accept('operator', '(');
-		e = p_expr();
-		t = t && accept('operator', ')');
-		if (s && t && e) 
-			if (def = p_block())
-				return [ 'if', e, def ];
-		else if (!error)
-			error = `expected bracketed expression in if: ${tok.peek().str()}`;
+		if (s) {
+			t = accept('operator', '(');
+			e = p_expr();
+			t = t && accept('operator', ')');
+			if (t && e) {
+				if (def = p_block())
+					return [ 'if', e, def ];
+			}
+			if (!error)
+				error = `expected bracketed expression in if: ${tok.peek().str()}`;
+		}
+		return tok.pos = p, null;
+	};
+	// else-if statement
+	const p_if_else_if = () => {
+		let p = tok.pos, s, e, t, def;
+		s = accept('word', 'else') && accept('word', 'if');
+		if (s) {
+			t = accept('operator', '(');
+			e = p_expr();
+			t = t && accept('operator', ')');
+			if (t && e) 
+				if (def = p_block())
+					return [ 'elseif', e, def ];
+			if (!error)
+				error = `expected bracketed expression after else-if: ${tok.peek().str()}`;
+		}
 		return tok.pos = p, null;
 	};
 	// else statement
