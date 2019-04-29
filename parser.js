@@ -193,20 +193,6 @@ const Parser = new function() {
 			if (s && e && t)
 				return [ 'return', e ];
 		}
-		// if statement
-		// else if (s = accept('word', 'if')) {
-		// 	t = accept('operator', '(');
-		// 	e = p_expr();
-		// 	t = t && accept('operator', ')');
-		// 	if (s && t && e) 
-		// 		if (def = p_block())
-		// 			return [ 'if', e, def ];
-		// }
-		// // else statement
-		// else if (s = accept('word', 'else')) {
-		// 	if (def = p_block())
-		// 		return [ 'else', def ];
-		// }
 		// while statement
 		else if (s = accept('word', 'while')) {
 			t = accept('operator', '(');
@@ -216,6 +202,7 @@ const Parser = new function() {
 				if (def = p_block())
 					return [ 'while', e, def ];
 		}
+		// if block
 		else if (def = p_if())
 			return def;
 		// unknown
