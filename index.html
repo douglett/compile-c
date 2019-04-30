@@ -62,7 +62,8 @@
 <script type="text/javascript" src="tokens.js"></script>
 <script type="text/javascript" src="parser.js"></script>
 <script type="text/javascript" src="lisper.js"></script>
-<script type="text/javascript" src="compilerjs.js"></script>
+<!-- <script type="text/javascript" src="compilerjs.js"></script> -->
+<script type="text/javascript" src="compilerwa.js"></script>
 
 <script type="text/javascript">
 'use strict';
@@ -118,8 +119,7 @@ const runshow = (prog) => {
 		if (Compiler.error())
 			return res = `Compiler: ${Compiler.error()}`, false;
 		// run
-		// return
-		res = Compiler.run();
+		// res = Compiler.run();
 		return true;
 	};
 	run();
