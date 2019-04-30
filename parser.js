@@ -195,12 +195,8 @@ const Parser = new function() {
 		}
 		// while statement
 		else if (s = accept('word', 'while')) {
-			t = accept('operator', '(');
-			e = p_expr();
-			t = t && accept('operator', ')');
-			if (s && t && e) 
-				if (def = p_block())
-					return [ 'while', e, def ];
+			if (s && (e = p_condition()) &&(def = p_block()))
+				return [ 'while', e, def ];
 		}
 		// if block
 		else if (def = p_if())
@@ -224,35 +220,18 @@ const Parser = new function() {
 	};
 	// if statement begin
 	const p_if_if = () => {
-		let p = tok.pos, s, e, t, def;
+		let p = tok.pos, s, e, def;
 		s = accept('word', 'if');
-		if (s) {
-			t = accept('operator', '(');
-			e = p_expr();
-			t = t && accept('operator', ')');
-			if (t && e) {
-				if (def = p_block())
-					return [ 'if', e, def ];
-			}
-			if (!error)
-				error = `expected bracketed expression in if: ${tok.peek().str()}`;
-		}
+		if (s && (e = p_condition()) && (def = p_block()))
+			return [ 'if', e, def ];
 		return tok.pos = p, null;
 	};
 	// else-if statement
 	const p_if_else_if = () => {
-		let p = tok.pos, s, e, t, def;
+		let p = tok.pos, s, e, def;
 		s = accept('word', 'else') && accept('word', 'if');
-		if (s) {
-			t = accept('operator', '(');
-			e = p_expr();
-			t = t && accept('operator', ')');
-			if (t && e) 
-				if (def = p_block())
-					return [ 'elseif', e, def ];
-			if (!error)
-				error = `expected bracketed expression after else-if: ${tok.peek().str()}`;
-		}
+		if (s && (e = p_condition()) && (def = p_block()))
+			return [ 'elseif', e, def ];
 		return tok.pos = p, null;
 	};
 	// else statement
@@ -263,12 +242,23 @@ const Parser = new function() {
 			return [ 'else', def ];
 		return tok.pos = p, null;
 	};
+	// bracketed condition
+	const p_condition = () => {
+		let p = tok.pos, e, t;
+		t = accept('operator', '(');
+		e = p_expr();
+		t = t && accept('operator', ')');
+		if (t && e)
+			return e;
+		error = `expected bracketed condition: ${tok.peek().str()}`;
+		return tok.pos = p, null;
+	};
 	// block of statements
 	const p_block = () => {
 		let p = tok.pos, def = [], t, a;
 		t = accept('operator', '{');
 		if (!t && !error)
-			error = `expected open braces in block: ${tok.peek().str()}`;
+			error = `expected block start: ${tok.peek().str()}`;
 		while ((a = p_statement()) && !error)
 			def.push(a);
 		t = t && accept('operator', '}');
