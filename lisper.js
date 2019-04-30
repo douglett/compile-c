@@ -131,12 +131,23 @@ const Lisper = new function() {
 		ls.forEach((l, i) => {
 			if      (is_lstype(l, 'define')) define(l);
 			else if (is_lstype(l, 'set')) vardef(l, 1) && expression(l, 2);
-			else if (is_lstype(l, 'if')) expression(l, 1) && list(l, 2) && block(l[2]);
+			// else if (is_lstype(l, 'if')) expression(l, 1) && list(l, 2) && block(l[2]);
+			else if (is_lstype(l, 'if')) ifblock(l);
 			else if (is_lstype(l, 'while')) expression(l, 1) && list(l, 2) && block(l[2]);
 			else if (is_lstype(l, 'return')) l[1] && expression(l, 1);
 			else if (is_expression(l)) expression(ls, i);
 			else    error(ls, i, `unexpected in block`);
 		});
+		return true;
+	};
+	const ifblock = (ls) => {
+		lstype(ls, 'if');
+		expression(ls, 1) && list(ls, 2) && block(ls[2]);
+		let i = 3;
+		while (ls[i] === "elseif")
+			expression(ls, i+1) && list(ls, i+2) && block(ls[i+2]) && (i = i + 3);
+		if (ls[i] === "else")
+			list(ls, i+1) && block(ls[i+1]);
 		return true;
 	};
 	const expression = (ls, pos) => {
